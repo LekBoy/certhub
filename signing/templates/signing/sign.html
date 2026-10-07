@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="pt">
+<head><meta charset="utf-8"><title>Assinar código</title></head>
+<body>
+  <h1>Assinar ficheiro (Code Signing)</h1>
+  {% if error %}<p style="color:#b00">{{ error }}</p>{% endif %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <p><label>Ficheiro <input type="file" name="file" required></label></p>
+    <p><label>Certificado
+      <select name="certificate" required>
+        {% for c in certificates %}<option value="{{ c.pk }}">{{ c.name }} (expira {{ c.not_after|date:"Y-m-d" }})</option>{% endfor %}
+      </select></label></p>
+    <button type="submit">Assinar e descarregar</button>
+  </form>
+</body>
+</html>

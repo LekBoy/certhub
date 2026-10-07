@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'inventory',
+    'signing',
 ]
 
 MIDDLEWARE = [
@@ -121,3 +123,15 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Assinatura de código (SignTool). Tem de correr num servidor Windows com o SignTool
+# (Windows SDK) e o certificado Code Signing importado no certificate store.
+SIGNTOOL_PATH = os.environ.get("SIGNTOOL_PATH", r"C:\Program Files (x86)\Windows Kits\10\bin\x64\signtool.exe")
+SIGN_TIMESTAMP_URL = os.environ.get("SIGN_TIMESTAMP_URL", "http://timestamp.digicert.com")
+SIGN_VERIFY = os.environ.get("SIGN_VERIFY", "1") == "1"
+SIGN_TIMEOUT_SECONDS = 120
+SIGN_MAX_UPLOAD_MB = int(os.environ.get("SIGN_MAX_UPLOAD_MB", "100"))
+SIGN_ALLOWED_EXTENSIONS = {".dll", ".exe", ".msi", ".cab", ".nupkg", ".msix", ".appx", ".sys", ".ocx", ".ps1"}
+
+LOGIN_URL = "/admin/login/"

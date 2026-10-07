@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -20,7 +21,7 @@ def _download(name, content, digest):
 @login_required
 @permission_required("signing.can_sign", raise_exception=True)
 def sign_page(request):
-    certs = SigningCertificate.objects.filter(is_active=True, not_after__gt=timezone.now())
+    certs = SigningCertificate.objects.filter(is_active=True, not_after__gt=timezone.now()).order_by("-not_after")
     error = None
     if request.method == "POST":
         uploaded = request.FILES.get("file")
@@ -32,7 +33,12 @@ def sign_page(request):
                 return _download(*sign_upload(uploaded, request.user, cert, via_api=False))
             except (RejectedUpload, SigningError) as exc:
                 error = str(exc)
-    return render(request, "signing/sign.html", {"certificates": certs, "error": error})
+        if request.headers.get("X-Requested-With") == "fetch":
+            return JsonResponse({"error": error}, status=400)
+    return render(request, "signing/sign.html", {
+        "certificates": certs, "error": error,
+        "allowed_extensions": sorted(settings.SIGN_ALLOWED_EXTENSIONS), "max_mb": settings.SIGN_MAX_UPLOAD_MB,
+    })
 
 
 def _token_user(request):

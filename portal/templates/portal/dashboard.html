@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Painel{% endblock %}
+{% block heading %}Painel{% endblock %}
+{% block actions %}{% if perms.signing.can_sign %}<a href="{% url 'signing:sign' %}" class="btn-primary">Assinar ficheiro</a>{% endif %}{% endblock %}
+{% block content %}
+<dl class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+  <div class="card p-5"><dt class="text-sm text-slate-500">Certificados válidos</dt><dd class="mt-2 text-3xl font-semibold text-emerald-600">{{ stats.active }}</dd></div>
+  <div class="card p-5"><dt class="text-sm text-slate-500">A expirar (≤ 30 dias)</dt><dd class="mt-2 text-3xl font-semibold {% if stats.expiring %}text-amber-600{% else %}text-slate-900{% endif %}">{{ stats.expiring }}</dd></div>
+  <div class="card p-5"><dt class="text-sm text-slate-500">Expirados</dt><dd class="mt-2 text-3xl font-semibold {% if stats.expired %}text-red-600{% else %}text-slate-900{% endif %}">{{ stats.expired }}</dd></div>
+  <div class="card p-5"><dt class="text-sm text-slate-500">Assinados (30 dias)</dt><dd class="mt-2 text-3xl font-semibold text-slate-900">{{ stats.signed_30d }}</dd></div>
+  <div class="card p-5"><dt class="text-sm text-slate-500">Falhas (30 dias)</dt><dd class="mt-2 text-3xl font-semibold {% if stats.failed_30d %}text-red-600{% else %}text-slate-900{% endif %}">{{ stats.failed_30d }}</dd></div>
+</dl>
+
+<div class="mt-8 grid gap-6 lg:grid-cols-5">
+  <section class="card lg:col-span-2">
+    <div class="card-header"><h2 class="font-semibold text-slate-900">Requer atenção</h2><a href="{% url 'portal:certificates' %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Ver todos</a></div>
+    <ul class="divide-y divide-slate-100">
+      {% for c in attention %}
+      <li class="flex items-center justify-between gap-3 px-5 py-3.5">
+        <div class="min-w-0"><p class="truncate text-sm font-medium text-slate-900">{{ c.name }}</p><p class="text-xs text-slate-500">{{ c.not_after|date:"d/m/Y" }}</p></div>
+        {% include "_cert_badge.html" %}
+      </li>
+      {% empty %}
+      <li class="px-5 py-10 text-center text-sm text-slate-500">{% if total_certs %}Tudo em ordem. Nenhum certificado a expirar.{% else %}Ainda não há certificados registados.{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="card lg:col-span-3">
+    <div class="card-header"><h2 class="font-semibold text-slate-900">Assinaturas recentes</h2><a href="{% url 'portal:history' %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Ver histórico</a></div>
+    <ul class="divide-y divide-slate-100">
+      {% for r in recent %}
+      <li class="flex items-center justify-between gap-3 px-5 py-3.5">
+        <div class="min-w-0"><p class="truncate text-sm font-medium text-slate-900">{{ r.filename }}</p><p class="text-xs text-slate-500">{{ r.user.username }} · {{ r.created_at|date:"d/m/Y H:i" }}</p></div>
+        {% if r.status == "ok" %}<span class="badge-green">Assinado</span>{% else %}<span class="badge-red">Falhou</span>{% endif %}
+      </li>
+      {% empty %}
+      <li class="px-5 py-10 text-center text-sm text-slate-500">Sem assinaturas ainda.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

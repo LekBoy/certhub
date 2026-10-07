@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Histórico{% endblock %}
+{% block heading %}Histórico de assinaturas{% endblock %}
+{% block content %}
+<form method="get" class="mb-5 flex flex-col gap-3 sm:flex-row">
+  <input type="search" name="q" value="{{ q }}" placeholder="Ficheiro, SHA-256{% if all_users %} ou utilizador{% endif %}…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:max-w-sm">
+  <select name="status" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+    <option value="">Todos os estados</option>
+    <option value="ok" {% if status == "ok" %}selected{% endif %}>Assinados</option>
+    <option value="failed" {% if status == "failed" %}selected{% endif %}>Falhados</option>
+  </select>
+  <button class="btn-secondary" type="submit">Filtrar</button>
+</form>
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+  <table class="min-w-full divide-y divide-slate-200">
+    <thead class="bg-slate-50"><tr><th class="th">Data</th>{% if all_users %}<th class="th">Utilizador</th>{% endif %}<th class="th">Ficheiro</th><th class="th">Certificado</th><th class="th">SHA-256 assinado</th><th class="th">Estado</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+    {% for r in page %}
+      <tr>
+        <td class="td whitespace-nowrap">{{ r.created_at|date:"d/m/Y H:i" }}</td>
+        {% if all_users %}<td class="td">{{ r.user.username }}</td>{% endif %}
+        <td class="td font-medium text-slate-900">{{ r.filename }}<div class="text-xs font-normal text-slate-500">{{ r.size|filesizeformat }}{% if r.via_api %} · API{% endif %}</div></td>
+        <td class="td">{{ r.certificate.name }}</td>
+        <td class="td font-mono text-xs" title="{{ r.sha256_signed }}">{{ r.sha256_signed|slice:":16" }}{% if r.sha256_signed %}…{% else %}—{% endif %}</td>
+        <td class="td">{% if r.status == "ok" %}<span class="badge-green">Assinado</span>{% else %}<span class="badge-red" title="{{ r.error }}">Falhou</span>{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-slate-500">Nada para mostrar.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm text-slate-600">
+    <span>Página {{ page.number }} de {{ page.paginator.num_pages }} · {{ page.paginator.count }} registos</span>
+    <div class="flex gap-2">
+      {% if page.has_previous %}<a class="btn-secondary" href="?{% if keep %}{{ keep }}&{% endif %}page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+      {% if page.has_next %}<a class="btn-secondary" href="?{% if keep %}{{ keep }}&{% endif %}page={{ page.next_page_number }}">Seguinte</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

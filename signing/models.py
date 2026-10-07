@@ -37,6 +37,19 @@ class SigningCertificate(models.Model):
     def usable(self):
         return self.is_active and not self.expired
 
+    @property
+    def days_left(self):
+        return (self.not_after - timezone.now()).days
+
+    @property
+    def status(self):
+        """ok | expiring (<= 30 dias) | expired | inactive"""
+        if not self.is_active:
+            return "inactive"
+        if self.expired:
+            return "expired"
+        return "expiring" if self.days_left <= 30 else "ok"
+
 
 class SigningToken(models.Model):
     """Token de API (Bearer) para pipelines de build chamarem /api/sign/."""

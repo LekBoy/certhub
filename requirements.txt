@@ -1,0 +1,4 @@
+Django>=5.2
+python-dotenv>=1.0
+cryptography>=42
+whitenoise>=6.7

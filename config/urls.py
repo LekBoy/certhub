@@ -17,7 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+admin.site.site_header = 'CertHub · Administração'
+admin.site.site_title = 'CertHub'
+admin.site.index_title = 'Utilizadores, grupos e certificados'
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('signing.urls')),
+    path('', include('portal.urls')),
 ]

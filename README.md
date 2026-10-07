@@ -19,3 +19,14 @@ A private key **nunca sai do servidor de assinatura**.
 - Pipeline: `curl -H "Authorization: Bearer $TOKEN" -F file=@Foo.dll -F certificate=1 -o Foo.dll.signed https://certhub/api/sign/`
 
 Cada pedido fica auditado (utilizador, ficheiro, SHA-256 antes/depois, certificado). Servir sempre atrás de HTTPS.
+
+## Interface e utilizadores
+
+UI em Tailwind CSS (painel, certificados, assinar, histórico, tokens). O CSS compilado vai commitado em `static/css/app.css`;
+só é preciso Node para o alterar: `npm install && npm run build:css` (ou `npm run watch:css`).
+
+- **Utilizadores**: Django admin (`/admin/auth/user/`). Grupos criados automaticamente:
+  - **Assinantes** – podem assinar ficheiros e gerir os seus próprios tokens. Há ações em massa para dar/retirar o grupo e desativar utilizadores
+    (utilizadores desativados deixam logo de poder usar tokens).
+  - **Auditores** – veem o histórico de assinaturas de todos (os restantes só vêem o seu).
+- Produção: `pip install -r requirements.txt`, `python manage.py migrate`, `collectstatic` (servido por WhiteNoise), `DJANGO_DEBUG=0`.

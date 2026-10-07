@@ -1,17 +1,74 @@
-<!doctype html>
-<html lang="pt">
-<head><meta charset="utf-8"><title>Assinar código</title></head>
-<body>
-  <h1>Assinar ficheiro (Code Signing)</h1>
-  {% if error %}<p style="color:#b00">{{ error }}</p>{% endif %}
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <p><label>Ficheiro <input type="file" name="file" required></label></p>
-    <p><label>Certificado
-      <select name="certificate" required>
-        {% for c in certificates %}<option value="{{ c.pk }}">{{ c.name }} (expira {{ c.not_after|date:"Y-m-d" }})</option>{% endfor %}
-      </select></label></p>
-    <button type="submit">Assinar e descarregar</button>
-  </form>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Assinar ficheiro{% endblock %}
+{% block heading %}Assinar ficheiro{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <div class="card p-6 sm:p-8">
+    <p class="text-sm text-slate-600">Envie o ficheiro e receba-o assinado (SHA-256, com timestamp). A private key permanece no servidor de assinatura.</p>
+
+    <div id="error" class="{% if not error %}hidden {% endif %}mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ error }}</div>
+    <div id="ok" class="mt-5 hidden rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-200"></div>
+
+    <form id="form" method="post" enctype="multipart/form-data" class="mt-6 space-y-6">
+      {% csrf_token %}
+      <div>
+        <label class="label">Ficheiro</label>
+        <label id="drop" for="file" class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition hover:border-indigo-400 hover:bg-indigo-50/40">
+          <svg class="h-10 w-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
+          <span id="fname" class="mt-3 text-sm font-medium text-slate-700">Arraste o ficheiro para aqui ou clique para escolher</span>
+          <span class="mt-1 text-xs text-slate-500">{{ allowed_extensions|join:" " }} · máx. {{ max_mb }} MB</span>
+          <input id="file" name="file" type="file" class="sr-only" required accept="{{ allowed_extensions|join:',' }}">
+        </label>
+      </div>
+      <div>
+        <label class="label" for="certificate">Certificado</label>
+        <select id="certificate" name="certificate" required class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          {% for c in certificates %}<option value="{{ c.pk }}">#{{ c.pk }} · {{ c.name }} (expira {{ c.not_after|date:"d/m/Y" }})</option>
+          {% empty %}<option value="" disabled selected>Sem certificados válidos</option>{% endfor %}
+        </select>
+      </div>
+      <button id="submit" class="btn-primary w-full" {% if not certificates %}disabled{% endif %}>
+        <svg id="spin" class="hidden h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" class="opacity-75"/></svg>
+        <span id="label">Assinar e descarregar</span>
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const form = document.getElementById("form"), file = document.getElementById("file"), drop = document.getElementById("drop");
+  const err = document.getElementById("error"), ok = document.getElementById("ok");
+  const btn = document.getElementById("submit"), spin = document.getElementById("spin"), label = document.getElementById("label");
+  const fname = document.getElementById("fname");
+
+  file.onchange = () => { if (file.files[0]) fname.textContent = file.files[0].name; };
+  ["dragover", "dragenter"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("border-indigo-400"); }));
+  ["dragleave", "drop"].forEach(e => drop.addEventListener(e, () => drop.classList.remove("border-indigo-400")));
+  drop.addEventListener("drop", ev => { ev.preventDefault(); file.files = ev.dataTransfer.files; file.onchange(); });
+
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    err.classList.add("hidden"); ok.classList.add("hidden");
+    btn.disabled = true; spin.classList.remove("hidden"); label.textContent = "A assinar…";
+    try {
+      const resp = await fetch(form.action || location.href, { method: "POST", body: new FormData(form), headers: { "X-Requested-With": "fetch" } });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || "Falha ao assinar o ficheiro.");
+      }
+      const blob = await resp.blob();
+      const name = (resp.headers.get("Content-Disposition") || "").match(/filename="(.+)"/)?.[1] || file.files[0].name;
+      const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: name });
+      document.body.appendChild(a); a.click(); a.remove();
+      ok.textContent = `«${name}» assinado. SHA-256: ${resp.headers.get("X-Signed-SHA256")}`;
+      ok.classList.remove("hidden");
+    } catch (e) {
+      err.textContent = e.message; err.classList.remove("hidden");
+    } finally {
+      btn.disabled = false; spin.classList.add("hidden"); label.textContent = "Assinar e descarregar";
+    }
+  });
+</script>
+{% endblock %}

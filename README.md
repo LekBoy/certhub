@@ -4,7 +4,7 @@ Inventário de certificados das VMs + **serviço de assinatura de código** (Sig
 
 ## Assinatura de código (sem entregar o .pfx)
 
-Os devs enviam o ficheiro (.dll, .exe, .msi, .cab, .nupkg, ...) e recebem-no assinado (SHA-256 + timestamp).
+Os devs enviam o ficheiro (.dll, .exe, .msi, .cab, .nupkg, ...) e recebem-no assinado (SHA-256).
 A private key **nunca sai do servidor de assinatura**.
 
 **Setup (servidor Windows com Windows SDK / SignTool):**
@@ -12,7 +12,7 @@ A private key **nunca sai do servidor de assinatura**.
 2. No admin, criar *Signing certificate* enviando só o `.cer` público. É rejeitado se não tiver o EKU
    Code Signing `1.3.6.1.5.5.7.3.3`. Thumbprint e validade são lidos do certificado.
 3. Dar a permissão `signing | signing request | Pode assinar ficheiros` aos devs e criar um *Signing token* (Bearer, 90 dias) para pipelines.
-4. Variáveis: `SIGNTOOL_PATH`, `SIGN_TIMESTAMP_URL`, `SIGN_VERIFY`, `SIGN_MAX_UPLOAD_MB`.
+4. Variáveis: `SIGNTOOL_PATH`, `SIGN_TIMESTAMP_URL` (opcional), `SIGN_VERIFY`, `SIGN_MAX_UPLOAD_MB`.
 
 **Uso:**
 - Web: `/sign/` (login). 
@@ -30,3 +30,13 @@ só é preciso Node para o alterar: `npm install && npm run build:css` (ou `npm 
     (utilizadores desativados deixam logo de poder usar tokens).
   - **Auditores** – veem o histórico de assinaturas de todos (os restantes só vêem o seu).
 - Produção: `pip install -r requirements.txt`, `python manage.py migrate`, `collectstatic` (servido por WhiteNoise), `DJANGO_DEBUG=0`.
+
+## Certificado interno e timestamp
+
+Com um certificado emitido pela CA interna não é preciso (nem útil) usar um TSA público:
+- `SIGN_TIMESTAMP_URL` vem **vazio** por omissão → assina sem timestamp. Atenção: sem timestamp a assinatura deixa de ser válida quando o certificado expira
+  (ficheiros já distribuídos teriam de ser reassinados).
+- Para assinaturas duradouras, aponte para um TSA RFC 3161 acessível internamente (ex.: `SIGN_TIMESTAMP_URL=http://tsa.empresa.local/tsa`).
+  Qualquer TSA serve com certificados internos; só é preciso rede até ele.
+- Máquinas que verifiquem as assinaturas têm de confiar na CA raiz interna (GPO / import no store *Trusted Root*).
+  O mesmo vale para o servidor de assinatura se `SIGN_VERIFY=1`; senão use `SIGN_VERIFY=0`.

@@ -33,14 +33,15 @@ def _run(args: list[str]) -> None:
 
 
 def sign_file(path: Path, certificate) -> None:
-    """Assina `path` in-place (SHA-256 + timestamp RFC 3161 SHA-256)."""
+    """Assina `path` in-place (SHA-256; com timestamp RFC 3161 se SIGN_TIMESTAMP_URL estiver definido)."""
     args = [
         settings.SIGNTOOL_PATH, "sign",
         "/fd", "SHA256",
-        "/tr", settings.SIGN_TIMESTAMP_URL, "/td", "SHA256",
         "/sha1", certificate.thumbprint,
         "/s", certificate.store_name,
     ]
+    if settings.SIGN_TIMESTAMP_URL:
+        args += ["/tr", settings.SIGN_TIMESTAMP_URL, "/td", "SHA256"]
     if certificate.machine_store:
         args.append("/sm")
     args.append(str(path))

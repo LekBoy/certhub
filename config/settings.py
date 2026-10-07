@@ -132,7 +132,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Assinatura de código (SignTool). Tem de correr num servidor Windows com o SignTool
 # (Windows SDK) e o certificado Code Signing importado no certificate store.
 SIGNTOOL_PATH = os.environ.get("SIGNTOOL_PATH", r"C:\Program Files (x86)\Windows Kits\10\bin\x64\signtool.exe")
-SIGN_TIMESTAMP_URL = os.environ.get("SIGN_TIMESTAMP_URL", "http://timestamp.digicert.com")
+# Servidor de timestamp RFC 3161 (ex.: TSA interna). Vazio = assina sem timestamp: a assinatura
+# deixa de ser válida quando o certificado expirar. Funciona com certificados emitidos internamente.
+SIGN_TIMESTAMP_URL = os.environ.get("SIGN_TIMESTAMP_URL", "").strip()
 SIGN_VERIFY = os.environ.get("SIGN_VERIFY", "1") == "1"
 SIGN_TIMEOUT_SECONDS = 120
 SIGN_MAX_UPLOAD_MB = int(os.environ.get("SIGN_MAX_UPLOAD_MB", "100"))

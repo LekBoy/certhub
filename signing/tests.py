@@ -96,6 +96,16 @@ class SignApiTests(TestCase):
         self.assertEqual((rec.status, rec.user), ("ok", self.user))
         self.assertEqual(r["X-Signed-SHA256"], rec.sha256_signed)
 
+    def test_timestamp_optional(self):
+        for url, expected in (("", False), ("http://tsa.interna/ts", True)):
+            with self.settings(SIGN_TIMESTAMP_URL=url), \
+                    mock.patch("signing.signer.subprocess.run", side_effect=self.fake_run) as run:
+                self.post()
+            args = run.call_args.args[0]
+            self.assertEqual("/tr" in args, expected)
+            if expected:
+                self.assertEqual(args[args.index("/tr") + 1], url)
+
     def test_rejects_extension(self):
         self.assertEqual(self.post("a.txt").status_code, 400)
         self.assertFalse(SigningRequest.objects.exists())

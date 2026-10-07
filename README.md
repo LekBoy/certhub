@@ -40,3 +40,5 @@ Com um certificado emitido pela CA interna não é preciso (nem útil) usar um T
   Qualquer TSA serve com certificados internos; só é preciso rede até ele.
 - Máquinas que verifiquem as assinaturas têm de confiar na CA raiz interna (GPO / import no store *Trusted Root*).
   O mesmo vale para o servidor de assinatura se `SIGN_VERIFY=1`; senão use `SIGN_VERIFY=0`.
+
+Guia completo com CA interna (AD CS) e scripts PowerShell: [docs/internal-ca-setup.md](docs/internal-ca-setup.md).

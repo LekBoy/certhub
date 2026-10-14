@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}CertHub{% endblock %} · CertHub</title>
+  <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body class="h-full font-sans text-slate-800 antialiased">
@@ -11,13 +12,15 @@
 
 <div id="overlay" class="fixed inset-0 z-30 hidden bg-slate-900/50 lg:hidden"></div>
 
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col bg-slate-900 transition-transform lg:translate-x-0">
-  <div class="flex h-16 items-center gap-3 px-6">
-    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500 text-white">
-      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/></svg>
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col bg-brand-900 transition-transform lg:translate-x-0">
+  <div class="flex h-16 items-center gap-3 px-5">
+    <img src="{% static 'img/bca-logo.png' %}" alt="BCA" class="h-10 w-auto rounded-sm">
+    <span class="leading-tight">
+      <span class="block text-base font-semibold tracking-tight text-white">CertHub</span>
+      <span class="block text-[11px] uppercase tracking-wider text-white/50">BCA</span>
     </span>
-    <span class="text-lg font-semibold tracking-tight text-white">CertHub</span>
   </div>
+  <div class="h-0.5 bg-accent"></div>
   <nav class="mt-4 flex-1 space-y-1 overflow-y-auto px-3 text-sm font-medium">
     {% include "_nav_item.html" with url=u_dash label="Painel" icon="m2.25 12 8.954-8.955a1.126 1.126 0 0 1 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" exact=True %}
     {% include "_nav_item.html" with url=u_certs label="Certificados" icon="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" %}
@@ -38,17 +41,17 @@
     {% if user.is_superuser %}{% url 'admin:index' as u_adm %}{% include "_nav_item.html" with url=u_adm label="Admin técnico" icon="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" %}{% endif %}
     {% endif %}
   </nav>
-  <div class="border-t border-slate-800 p-4">
+  <div class="border-t border-white/10 p-4">
     <div class="flex items-center gap-3">
-      <a href="{% url 'portal:account' %}" class="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-slate-800/60" title="A minha conta">
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-sm font-semibold uppercase text-indigo-300">{{ user.username|slice:":2" }}</span>
+      <a href="{% url 'portal:account' %}" class="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-white/5" title="A minha conta">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-semibold uppercase text-white">{{ user.username|slice:":2" }}</span>
         <span class="min-w-0 flex-1">
           <span class="block truncate text-sm font-medium text-white">{{ user.get_full_name|default:user.username }}</span>
           <span class="block truncate text-xs text-slate-400">{{ user.email|default:user.username }}</span>
         </span>
       </a>
       <form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}
-        <button title="Terminar sessão" class="rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white">
+        <button title="Terminar sessão" class="rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white">
           <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg>
         </button>
       </form>
@@ -69,7 +72,7 @@
     {% if messages %}
       <div class="mb-6 space-y-3">
       {% for m in messages %}
-        <div class="rounded-lg px-4 py-3 text-sm ring-1 ring-inset {% if m.level_tag == 'error' %}bg-red-50 text-red-800 ring-red-200{% elif m.level_tag == 'success' %}bg-emerald-50 text-emerald-800 ring-emerald-200{% else %}bg-indigo-50 text-indigo-800 ring-indigo-200{% endif %}">{{ m }}</div>
+        <div class="rounded-lg px-4 py-3 text-sm ring-1 ring-inset {% if m.level_tag == 'error' %}bg-red-50 text-red-800 ring-red-200{% elif m.level_tag == 'success' %}bg-emerald-50 text-emerald-800 ring-emerald-200{% else %}bg-brand-50 text-brand-800 ring-brand-200{% endif %}">{{ m }}</div>
       {% endfor %}
       </div>
     {% endif %}

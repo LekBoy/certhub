@@ -1,2 +1,2 @@
-{% load portal_extras %}<a href="{{ url }}" class="flex items-center gap-3 rounded-lg px-3 py-2 {% if exact and request.path == url or not exact and request.path|startswith:url %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-800/60 hover:text-white{% endif %}">
+{% load portal_extras %}<a href="{{ url }}" class="flex items-center gap-3 rounded-lg px-3 py-2 {% if exact and request.path == url or not exact and request.path|startswith:url %}bg-white/10 text-white shadow-[inset_3px_0_0_0_#cc1519]{% else %}text-slate-300 hover:bg-white/5 hover:text-white{% endif %}">
   <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="{{ icon }}"/></svg>{{ label }}</a>

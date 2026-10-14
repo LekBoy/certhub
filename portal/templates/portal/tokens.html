@@ -40,7 +40,7 @@
       <h2 class="font-semibold text-slate-900">Novo token</h2>
       <form method="post" class="mt-4 space-y-4">{% csrf_token %}
         <div><label class="label" for="name">Descrição</label>
-          <input id="name" name="name" required maxlength="255" placeholder="Pipeline PAD Custom Actions" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></div>
+          <input id="name" name="name" required maxlength="255" placeholder="Pipeline PAD Custom Actions" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"></div>
         <button class="btn-primary w-full">Gerar token ({{ valid_days }} dias)</button>
       </form>
     </section>

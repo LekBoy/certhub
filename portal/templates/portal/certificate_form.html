@@ -35,7 +35,7 @@
         {% include "_field.html" with field=form.cert_file_path %}
       </div>
       <div data-methods="custom">{% include "_field.html" with field=form.custom_command %}</div>
-      <p data-methods="keylocker_thumbprint" class="rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-800 ring-1 ring-inset ring-indigo-200">Corra <code>smctl windows certsync --keypair-alias=&lt;alias&gt;</code> com a conta de serviço: o certificado fica no store dessa conta e o SignTool usa só o thumbprint. As credenciais do KeyLocker ficam em variáveis de ambiente (ver Definições).</p>
+      <p data-methods="keylocker_thumbprint" class="rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-inset ring-brand-200">Corra <code>smctl windows certsync --keypair-alias=&lt;alias&gt;</code> com a conta de serviço: o certificado fica no store dessa conta e o SignTool usa só o thumbprint. As credenciais do KeyLocker ficam em variáveis de ambiente (ver Definições).</p>
       <div class="grid gap-5 sm:grid-cols-2">
         {% include "_field.html" with field=form.timestamp_url %}
         {% include "_field.html" with field=form.verify %}

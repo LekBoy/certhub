@@ -21,13 +21,13 @@
         {% empty %}<p class="text-sm text-slate-500">Ainda não há grupos.</p>{% endfor %}
       </div>
       {% for e in form.groups.errors %}<p class="mt-1 text-xs text-red-600">{{ e }}</p>{% endfor %}
-      <p class="mt-1 text-xs text-slate-500">As permissões vêm dos grupos. Gira-os em <a class="text-indigo-600" href="{% url 'portal:groups' %}">Grupos</a>.</p>
+      <p class="mt-1 text-xs text-slate-500">As permissões vêm dos grupos. Gira-os em <a class="text-brand-600" href="{% url 'portal:groups' %}">Grupos</a>.</p>
     </div>
     <div class="space-y-4 border-t border-slate-100 pt-5">
       {% include "_field.html" with field=form.is_active %}
       {% if form.is_superuser %}{% include "_field.html" with field=form.is_superuser %}{% endif %}
     </div>
-    {% if not target %}<p class="rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-800 ring-1 ring-inset ring-indigo-200">Será gerada uma palavra-passe temporária, mostrada uma só vez. O utilizador terá de a trocar no primeiro acesso.</p>{% endif %}
+    {% if not target %}<p class="rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-inset ring-brand-200">Será gerada uma palavra-passe temporária, mostrada uma só vez. O utilizador terá de a trocar no primeiro acesso.</p>{% endif %}
     <div class="flex justify-end gap-3"><a href="{% url 'portal:users' %}" class="btn-secondary">Cancelar</a><button class="btn-primary">{% if target %}Guardar{% else %}Criar utilizador{% endif %}</button></div>
   </form>
 

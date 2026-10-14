@@ -13,7 +13,7 @@
 
 <div class="mt-8 grid gap-6 lg:grid-cols-5">
   <section class="card lg:col-span-2">
-    <div class="card-header"><h2 class="font-semibold text-slate-900">Requer atenção</h2><a href="{% url 'portal:certificates' %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Ver todos</a></div>
+    <div class="card-header"><h2 class="font-semibold text-slate-900">Requer atenção</h2><a href="{% url 'portal:certificates' %}" class="text-sm font-medium text-brand-600 hover:text-brand-500">Ver todos</a></div>
     <ul class="divide-y divide-slate-100">
       {% for c in attention %}
       <li class="flex items-center justify-between gap-3 px-5 py-3.5">
@@ -27,7 +27,7 @@
   </section>
 
   <section class="card lg:col-span-3">
-    <div class="card-header"><h2 class="font-semibold text-slate-900">Assinaturas recentes</h2><a href="{% url 'portal:history' %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Ver histórico</a></div>
+    <div class="card-header"><h2 class="font-semibold text-slate-900">Assinaturas recentes</h2><a href="{% url 'portal:history' %}" class="text-sm font-medium text-brand-600 hover:text-brand-500">Ver histórico</a></div>
     <ul class="divide-y divide-slate-100">
       {% for r in recent %}
       <li class="flex items-center justify-between gap-3 px-5 py-3.5">

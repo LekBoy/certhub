@@ -21,7 +21,7 @@ Cada pedido fica auditado (utilizador, ficheiro, SHA-256 antes/depois, certifica
 
 ## Interface e administração
 
-UI em Tailwind CSS. O CSS compilado vai commitado em `static/css/app.css`; só é preciso Node para o alterar:
+UI em Tailwind CSS, com a identidade da BCA: azul `#193D79` e vermelho `#CC1519` (do logótipo). As cores estão em `tailwind.config.js` (`brand` e `accent`) e o logótipo e o favicon em `static/img/`; para mudar a identidade basta alterar esses ficheiros e recompilar o CSS. O CSS compilado vai commitado em `static/css/app.css`; só é preciso Node para o alterar:
 `npm install && npm run build:css` (ou `npm run watch:css`).
 
 Tudo se gere **dentro do CertHub** (menu «Administração»), segundo as permissões de cada grupo:

@@ -8,8 +8,8 @@ from signing.models import SigningCertificate, SiteSettings
 
 from .permissions import PERMISSION_GROUPS, permission_objects
 
-INPUT = "block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-CHECK = "h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+INPUT = "block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
+CHECK = "h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
 
 
 class TailwindMixin:
@@ -24,8 +24,8 @@ class TailwindMixin:
                 w.attrs["class"] = CHECK
             elif isinstance(w, forms.FileInput):
                 w.attrs["class"] = ("block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 "
-                                    "file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold "
-                                    "file:text-indigo-700 hover:file:bg-indigo-100")
+                                    "file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-semibold "
+                                    "file:text-brand-700 hover:file:bg-brand-100")
             else:
                 w.attrs["class"] = INPUT
             if isinstance(w, forms.Textarea):

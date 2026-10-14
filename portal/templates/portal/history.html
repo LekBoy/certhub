@@ -3,8 +3,8 @@
 {% block heading %}Histórico de assinaturas{% endblock %}
 {% block content %}
 <form method="get" class="mb-5 flex flex-col gap-3 sm:flex-row">
-  <input type="search" name="q" value="{{ q }}" placeholder="Ficheiro, SHA-256{% if all_users %} ou utilizador{% endif %}…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:max-w-sm">
-  <select name="status" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+  <input type="search" name="q" value="{{ q }}" placeholder="Ficheiro, SHA-256{% if all_users %} ou utilizador{% endif %}…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:max-w-sm">
+  <select name="status" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
     <option value="">Todos os estados</option>
     <option value="ok" {% if status == "ok" %}selected{% endif %}>Assinados</option>
     <option value="failed" {% if status == "failed" %}selected{% endif %}>Falhados</option>

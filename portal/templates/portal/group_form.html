@@ -20,7 +20,7 @@
           <div class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
             {% for code, label, desc in items %}
             <label class="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-slate-50">
-              <input type="checkbox" name="perms" value="{{ code }}" {% if code in selected %}checked{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+              <input type="checkbox" name="perms" value="{{ code }}" {% if code in selected %}checked{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
               <span><span class="block text-sm font-medium text-slate-800">{{ label }}</span><span class="block text-xs text-slate-500">{{ desc }}</span></span>
             </label>
             {% endfor %}

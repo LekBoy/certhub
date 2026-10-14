@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Auditoria{% endblock %}
+{% block heading %}Auditoria{% endblock %}
+{% block content %}
+<form method="get" class="mb-5 flex gap-3">
+  <input type="search" name="q" value="{{ q }}" placeholder="Utilizador, ação, alvo ou detalhe…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:max-w-sm">
+  <button class="btn-secondary" type="submit">Filtrar</button>
+</form>
+<div class="card overflow-hidden"><div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-slate-200">
+  <thead class="bg-slate-50"><tr><th class="th">Data</th><th class="th">Utilizador</th><th class="th">Ação</th><th class="th">Alvo</th><th class="th">Detalhe</th><th class="th">IP</th></tr></thead>
+  <tbody class="divide-y divide-slate-100">
+  {% for e in page %}
+    <tr>
+      <td class="td whitespace-nowrap">{{ e.created_at|date:"d/m/Y H:i" }}</td>
+      <td class="td">{{ e.username|default:"—" }}</td>
+      <td class="td"><span class="badge-slate">{{ e.action }}</span></td>
+      <td class="td font-medium text-slate-900">{{ e.target }}</td>
+      <td class="td max-w-md truncate" title="{{ e.detail }}">{{ e.detail }}</td>
+      <td class="td font-mono text-xs">{{ e.ip_address|default:"" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-slate-500">Sem eventos.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if page.paginator.num_pages > 1 %}
+<div class="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm text-slate-600">
+  <span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+  <div class="flex gap-2">
+    {% if page.has_previous %}<a class="btn-secondary" href="?{% if keep %}{{ keep }}&{% endif %}page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+    {% if page.has_next %}<a class="btn-secondary" href="?{% if keep %}{{ keep }}&{% endif %}page={{ page.next_page_number }}">Seguinte</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}

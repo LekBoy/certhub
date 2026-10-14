@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -6,8 +5,8 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from .models import SigningCertificate, SigningToken
-from .service import RejectedUpload, sign_upload
+from .models import SigningCertificate, SigningToken, SiteSettings
+from .service import LimitReached, RejectedUpload, sign_upload
 from .signer import SigningError
 
 
@@ -21,11 +20,12 @@ def _download(name, content, digest):
 @login_required
 @permission_required("signing.can_sign", raise_exception=True)
 def sign_page(request):
-    certs = SigningCertificate.objects.filter(is_active=True, not_after__gt=timezone.now()).order_by("-not_after")
+    site = SiteSettings.load()
+    certs = SigningCertificate.usable_for(request.user)
     error = None
     if request.method == "POST":
         uploaded = request.FILES.get("file")
-        cert = certs.filter(pk=request.POST.get("certificate") or 0).first()
+        cert = next((c for c in certs if str(c.pk) == request.POST.get("certificate")), None)
         if not uploaded or not cert:
             error = "Escolha um ficheiro e um certificado válido."
         else:
@@ -37,7 +37,7 @@ def sign_page(request):
             return JsonResponse({"error": error}, status=400)
     return render(request, "signing/sign.html", {
         "certificates": certs, "error": error,
-        "allowed_extensions": sorted(settings.SIGN_ALLOWED_EXTENSIONS), "max_mb": settings.SIGN_MAX_UPLOAD_MB,
+        "allowed_extensions": sorted(site.extensions), "max_mb": site.max_upload_mb,
     })
 
 
@@ -65,13 +65,18 @@ def sign_api(request):
     uploaded = request.FILES.get("file")
     if not uploaded:
         return JsonResponse({"error": "Campo multipart 'file' em falta."}, status=400)
-    certs = SigningCertificate.objects.filter(is_active=True, not_after__gt=timezone.now())
-    cert = certs.filter(pk=request.POST["certificate"]).first() if request.POST.get("certificate", "").isdigit() \
-        else (certs.first() if certs.count() == 1 else None)
+    certs = SigningCertificate.usable_for(user)
+    wanted = request.POST.get("certificate", "")
+    if wanted.isdigit():
+        cert = next((c for c in certs if c.pk == int(wanted)), None)
+    else:
+        cert = certs[0] if len(certs) == 1 else None
     if cert is None:
-        return JsonResponse({"error": "Indique 'certificate' (id) válido."}, status=400)
+        return JsonResponse({"error": "Indique 'certificate' (id) de um certificado a que tem acesso."}, status=400)
     try:
         return _download(*sign_upload(uploaded, user, cert, via_api=True))
+    except LimitReached as exc:
+        return JsonResponse({"error": str(exc)}, status=429)
     except RejectedUpload as exc:
         return JsonResponse({"error": str(exc)}, status=400)
     except SigningError as exc:

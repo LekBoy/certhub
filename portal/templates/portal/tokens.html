@@ -25,7 +25,7 @@
           <td class="td font-mono text-xs">{{ t.token_prefix }}…</td>
           <td class="td whitespace-nowrap">{{ t.expires_at|date:"d/m/Y" }}</td>
           <td class="td whitespace-nowrap">{{ t.last_used|date:"d/m/Y H:i"|default:"nunca" }}</td>
-          <td class="td text-right">{% if t.valid %}<form method="post" action="{% url 'portal:revoke_token' t.pk %}" onsubmit="return confirm('Revogar este token? Os pipelines que o usam deixam de funcionar.')">{% csrf_token %}<button class="btn-danger !px-3 !py-1.5">Revogar</button></form>{% endif %}</td>
+          <td class="td text-right">{% if t.valid %}<form method="post" action="{% url 'portal:revoke_token' t.pk %}" data-confirm="Revogar este token? Os pipelines que o usam deixam de funcionar.">{% csrf_token %}<button class="btn-danger !px-3 !py-1.5">Revogar</button></form>{% endif %}</td>
         </tr>
       {% empty %}
         <tr><td colspan="5" class="px-5 py-10 text-center text-sm text-slate-500">Ainda não criou tokens.</td></tr>
@@ -41,7 +41,7 @@
       <form method="post" class="mt-4 space-y-4">{% csrf_token %}
         <div><label class="label" for="name">Descrição</label>
           <input id="name" name="name" required maxlength="255" placeholder="Pipeline PAD Custom Actions" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></div>
-        <button class="btn-primary w-full">Gerar token (90 dias)</button>
+        <button class="btn-primary w-full">Gerar token ({{ valid_days }} dias)</button>
       </form>
     </section>
     <section class="card p-5">

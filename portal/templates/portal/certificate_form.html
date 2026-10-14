@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{% if cert %}{{ cert.name }}{% else %}Registar certificado{% endif %}{% endblock %}
+{% block heading %}{% if cert %}{{ cert.name }}{% else %}Registar certificado{% endif %}{% endblock %}
+{% block actions %}<a href="{% url 'portal:certificates' %}" class="btn-secondary">Voltar</a>{% endblock %}
+{% block content %}
+{% if test_output %}
+<div class="mb-6 rounded-xl p-5 ring-1 ring-inset {% if test_ok %}bg-emerald-50 ring-emerald-200{% else %}bg-red-50 ring-red-200{% endif %}">
+  <p class="text-sm font-semibold {% if test_ok %}text-emerald-900{% else %}text-red-900{% endif %}">{% if test_ok %}Assinatura de teste concluída com sucesso.{% else %}A assinatura de teste falhou.{% endif %}</p>
+  <pre class="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-white p-3 font-mono text-xs text-slate-800 ring-1 ring-slate-200">{{ test_output }}</pre>
+</div>
+{% endif %}
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" enctype="multipart/form-data" class="flex flex-col gap-6 lg:col-span-2">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ form.non_field_errors }}</div>{% endif %}
+
+    <section class="card space-y-5 p-6">
+      <h2 class="font-semibold text-slate-900">Identificação</h2>
+      {% include "_field.html" with field=form.name %}
+      {% include "_field.html" with field=form.certificate_file %}
+      {% include "_field.html" with field=form.is_active %}
+    </section>
+
+    <section class="card space-y-5 p-6">
+      <h2 class="font-semibold text-slate-900">Como assinar</h2>
+      {% include "_field.html" with field=form.method %}
+      <div data-methods="store" class="space-y-5">
+        <div class="grid gap-5 sm:grid-cols-2">{% include "_field.html" with field=form.store_name %}</div>
+        {% include "_field.html" with field=form.machine_store %}
+      </div>
+      <div data-methods="keylocker_alias" class="space-y-5">
+        {% include "_field.html" with field=form.keypair_alias %}
+        {% include "_field.html" with field=form.csp_name %}
+        {% include "_field.html" with field=form.cert_file_path %}
+      </div>
+      <div data-methods="custom">{% include "_field.html" with field=form.custom_command %}</div>
+      <p data-methods="keylocker_thumbprint" class="rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-800 ring-1 ring-inset ring-indigo-200">Corra <code>smctl windows certsync --keypair-alias=&lt;alias&gt;</code> com a conta de serviço: o certificado fica no store dessa conta e o SignTool usa só o thumbprint. As credenciais do KeyLocker ficam em variáveis de ambiente (ver Definições).</p>
+      <div class="grid gap-5 sm:grid-cols-2">
+        {% include "_field.html" with field=form.timestamp_url %}
+        {% include "_field.html" with field=form.verify %}
+      </div>
+    </section>
+
+    <section class="card space-y-4 p-6">
+      <h2 class="font-semibold text-slate-900">Quem pode usar</h2>
+      <div class="grid gap-2 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
+        {% for choice in form.allowed_groups %}<label class="flex items-center gap-2 text-sm text-slate-700">{{ choice.tag }} {{ choice.choice_label }}</label>{% empty %}<p class="text-sm text-slate-500">Ainda não há grupos.</p>{% endfor %}
+      </div>
+      <p class="text-xs text-slate-500">{{ form.allowed_groups.help_text }}</p>
+    </section>
+
+    <section class="card space-y-5 p-6">
+      <h2 class="font-semibold text-slate-900">Subscrição e limites</h2>
+      <div class="grid gap-5 sm:grid-cols-3">
+        {% include "_field.html" with field=form.annual_limit %}
+        {% include "_field.html" with field=form.subscription_start %}
+        {% include "_field.html" with field=form.renewal_date %}
+      </div>
+      {% include "_field.html" with field=form.notes %}
+    </section>
+
+    <div class="flex justify-end gap-3"><a href="{% url 'portal:certificates' %}" class="btn-secondary">Cancelar</a><button class="btn-primary">{% if cert %}Guardar{% else %}Registar certificado{% endif %}</button></div>
+  </form>
+
+  <div class="space-y-6">
+    {% if cert %}
+    <section class="card p-5">
+      <div class="flex items-center justify-between"><h2 class="font-semibold text-slate-900">Estado</h2>{% with c=cert %}{% include "_cert_badge.html" %}{% endwith %}</div>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div><dt class="text-slate-500">Titular</dt><dd class="break-all">{{ cert.subject }}</dd></div>
+        <div><dt class="text-slate-500">Thumbprint</dt><dd class="break-all font-mono text-xs">{{ cert.thumbprint }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Válido até</dt><dd>{{ cert.not_after|date:"d/m/Y" }}</dd></div>
+      </dl>
+      <div class="mt-4 border-t border-slate-100 pt-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Assinaturas neste período</p>
+        <div class="mt-2">{% with c=cert %}{% include "_cert_usage.html" %}{% endwith %}</div>
+        <p class="mt-1 text-xs text-slate-400">desde {{ cert.period_start|date:"d/m/Y" }}</p>
+      </div>
+    </section>
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Comando de assinatura</h2>
+      <p class="mt-1 text-xs text-slate-500">Pré-visualização com um ficheiro de exemplo, conforme o método guardado.</p>
+      <pre class="mt-3 whitespace-pre-wrap break-all rounded-lg bg-slate-900 p-3 text-xs leading-relaxed text-slate-100">{{ preview }}</pre>
+      <form method="post" action="{% url 'portal:certificate_test' cert.pk %}" class="mt-4">{% csrf_token %}
+        <button class="btn-secondary w-full">Testar assinatura</button></form>
+      <p class="mt-2 text-xs text-slate-500">Assina um ficheiro descartável. Não conta para o limite nem entra no histórico.</p>
+    </section>
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Remover</h2>
+      <form method="post" action="{% url 'portal:certificate_delete' cert.pk %}" class="mt-3" data-confirm="Apagar o certificado «{{ cert.name }}»? Só é possível se nunca tiver sido usado; caso contrário, desative-o.">{% csrf_token %}
+        <button class="btn-danger w-full">Apagar certificado</button></form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const method = document.getElementById("id_method");
+  const sections = document.querySelectorAll("[data-methods]");
+  const sync = () => sections.forEach(s => s.classList.toggle("hidden", !s.dataset.methods.split(" ").includes(method.value)));
+  method.addEventListener("change", sync); sync();
+</script>
+{% endblock %}

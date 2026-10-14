@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Definições{% endblock %}
+{% block heading %}Definições{% endblock %}
+{% block content %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" class="card flex flex-col gap-5 p-6 lg:col-span-2">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ form.non_field_errors }}</div>{% endif %}
+    <h2 class="font-semibold text-slate-900">Assinatura</h2>
+    {% include "_field.html" with field=form.signtool_path %}
+    {% include "_field.html" with field=form.timestamp_url %}
+    <div class="grid gap-5 sm:grid-cols-2">
+      {% include "_field.html" with field=form.timeout_seconds %}
+      {% include "_field.html" with field=form.max_upload_mb %}
+    </div>
+    {% include "_field.html" with field=form.allowed_extensions %}
+    {% include "_field.html" with field=form.verify_after_sign %}
+    <h2 class="border-t border-slate-100 pt-5 font-semibold text-slate-900">Acesso e limites</h2>
+    {% include "_field.html" with field=form.token_valid_days %}
+    {% include "_field.html" with field=form.block_at_limit %}
+    <div class="flex justify-end"><button class="btn-primary">Guardar definições</button></div>
+  </form>
+  <div class="space-y-6">
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Credenciais do servidor</h2>
+      <p class="mt-1 text-xs text-slate-500">Os segredos (ex.: KeyLocker) ficam em variáveis de ambiente da conta de serviço, nunca na base de dados. Aqui só se vê se estão definidas.</p>
+      <ul class="mt-3 divide-y divide-slate-100 text-sm">
+        {% for name, is_set in env %}
+        <li class="flex items-center justify-between py-2"><code class="text-xs">{{ name }}</code>{% if is_set %}<span class="badge-green">Definida</span>{% else %}<span class="badge-slate">Não definida</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      <p class="mt-3 text-xs text-slate-500">Só são necessárias para certificados que usem o DigiCert KeyLocker.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

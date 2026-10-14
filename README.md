@@ -8,11 +8,10 @@ Os devs enviam o ficheiro (.dll, .exe, .msi, .cab, .nupkg, ...) e recebem-no ass
 A private key **nunca sai do servidor de assinatura**.
 
 **Setup (servidor Windows com Windows SDK / SignTool):**
-1. Importar o `.pfx` no certificate store (LocalMachine\My) como **não exportável**; idealmente a CA entrega a key em HSM/token.
-2. No admin, criar *Signing certificate* enviando só o `.cer` público. É rejeitado se não tiver o EKU
-   Code Signing `1.3.6.1.5.5.7.3.3`. Thumbprint e validade são lidos do certificado.
-3. Dar a permissão `signing | signing request | Pode assinar ficheiros` aos devs e criar um *Signing token* (Bearer, 90 dias) para pipelines.
-4. Variáveis: `SIGNTOOL_PATH`, `SIGN_TIMESTAMP_URL` (opcional), `SIGN_VERIFY`, `SIGN_MAX_UPLOAD_MB`.
+1. A chave privada fica não exportável no store do Windows, num HSM ou na cloud do fornecedor (ex.: DigiCert KeyLocker, ver `docs/digicert-keylocker.md`).
+2. Em *Certificados → Registar certificado* envie só o `.cer` público (rejeitado se não tiver o EKU Code Signing `1.3.6.1.5.5.7.3.3`) e escolha o método de assinatura.
+3. Em *Grupos* dê a permissão «Assinar ficheiros» (grupo *Assinantes*); cada utilizador cria os seus tokens (Bearer) para pipelines.
+4. Valores iniciais por variável de ambiente (depois editáveis em *Definições*): `SIGNTOOL_PATH`, `SIGN_TIMESTAMP_URL` (opcional), `SIGN_VERIFY`, `SIGN_MAX_UPLOAD_MB`.
 
 **Uso:**
 - Web: `/sign/` (login). 
@@ -20,16 +19,25 @@ A private key **nunca sai do servidor de assinatura**.
 
 Cada pedido fica auditado (utilizador, ficheiro, SHA-256 antes/depois, certificado). Servir sempre atrás de HTTPS.
 
-## Interface e utilizadores
+## Interface e administração
 
-UI em Tailwind CSS (painel, certificados, assinar, histórico, tokens). O CSS compilado vai commitado em `static/css/app.css`;
-só é preciso Node para o alterar: `npm install && npm run build:css` (ou `npm run watch:css`).
+UI em Tailwind CSS. O CSS compilado vai commitado em `static/css/app.css`; só é preciso Node para o alterar:
+`npm install && npm run build:css` (ou `npm run watch:css`).
 
-- **Utilizadores**: Django admin (`/admin/auth/user/`). Grupos criados automaticamente:
-  - **Assinantes** – podem assinar ficheiros e gerir os seus próprios tokens. Há ações em massa para dar/retirar o grupo e desativar utilizadores
-    (utilizadores desativados deixam logo de poder usar tokens).
-  - **Auditores** – veem o histórico de assinaturas de todos (os restantes só vêem o seu).
-- Produção: `pip install -r requirements.txt`, `python manage.py migrate`, `collectstatic` (servido por WhiteNoise), `DJANGO_DEBUG=0`.
+Tudo se gere **dentro do CertHub** (menu «Administração»), segundo as permissões de cada grupo:
+
+- **Utilizadores** – criar (palavra-passe temporária, trocada no primeiro acesso), editar, ativar/desativar, repor palavra-passe, apagar (se sem histórico).
+- **Grupos** – criar/editar/apagar com uma matriz de permissões: assinar, ver histórico de todos, ver auditoria, gerir certificados, utilizadores, grupos, tokens e definições. Grupos base: *Assinantes*, *Auditores*, *Administradores* (editáveis).
+- **Certificados** – registar o `.cer` público, escolher o **método de assinatura** (store do Windows, DigiCert KeyLocker, comando personalizado), grupos com acesso, limite anual, datas de subscrição/renovação, notas e botão «Testar assinatura».
+- **Definições** – SignTool, timestamp, verificação, limites de upload, extensões, validade dos tokens, bloqueio ao atingir o limite.
+- **Auditoria** – quem fez o quê.
+- Proteções: não é possível ficar sem nenhum utilizador ativo capaz de gerir utilizadores; ninguém dá permissões que não tem; só um superadministrador altera outro.
+- O Django admin (`/admin/`) fica só para superadministradores (emergência).
+
+O primeiro utilizador cria-se com `python manage.py createsuperuser`; depois já se gere tudo no CertHub.
+Segredos (API keys, palavras-passe) ficam em variáveis de ambiente do servidor, nunca na base de dados.
+
+Produção: `pip install -r requirements.txt`, `python manage.py migrate`, `collectstatic` (servido por WhiteNoise), `DJANGO_DEBUG=0`.
 
 ## Certificado interno e timestamp
 
@@ -42,3 +50,5 @@ Com um certificado emitido pela CA interna não é preciso (nem útil) usar um T
   O mesmo vale para o servidor de assinatura se `SIGN_VERIFY=1`; senão use `SIGN_VERIFY=0`.
 
 Guia completo com CA interna (AD CS) e scripts PowerShell: [docs/internal-ca-setup.md](docs/internal-ca-setup.md).
+
+Guia do DigiCert KeyLocker: [docs/digicert-keylocker.md](docs/digicert-keylocker.md).

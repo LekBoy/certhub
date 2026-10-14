@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{% if group %}Editar grupo{% else %}Novo grupo{% endif %}{% endblock %}
+{% block heading %}{% if group %}{{ group.name }}{% else %}Novo grupo{% endif %}{% endblock %}
+{% block actions %}<a href="{% url 'portal:groups' %}" class="btn-secondary">Voltar</a>{% endblock %}
+{% block content %}
+<form method="post" class="grid gap-6 lg:grid-cols-3">
+  {% csrf_token %}
+  <div class="space-y-6 lg:col-span-2">
+    <section class="card space-y-5 p-6">
+      {% if form.non_field_errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ form.non_field_errors }}</div>{% endif %}
+      {% include "_field.html" with field=form.name %}
+    </section>
+    <section class="card p-6">
+      <h2 class="font-semibold text-slate-900">Permissões</h2>
+      {% for e in form.perms.errors %}<p class="mt-1 text-xs text-red-600">{{ e }}</p>{% endfor %}
+      <div class="mt-4 space-y-6">
+        {% for title, items in permission_groups %}
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ title }}</p>
+          <div class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
+            {% for code, label, desc in items %}
+            <label class="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-slate-50">
+              <input type="checkbox" name="perms" value="{{ code }}" {% if code in selected %}checked{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+              <span><span class="block text-sm font-medium text-slate-800">{{ label }}</span><span class="block text-xs text-slate-500">{{ desc }}</span></span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+  <div class="space-y-6">
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Membros</h2>
+      <div class="mt-3 max-h-80 space-y-2 overflow-y-auto">
+        {% for choice in form.members %}<label class="flex items-center gap-2 text-sm text-slate-700">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+      </div>
+    </section>
+    <div class="flex gap-3"><button class="btn-primary flex-1">{% if group %}Guardar{% else %}Criar grupo{% endif %}</button></div>
+    {% if group %}
+    <button type="submit" formaction="{% url 'portal:group_delete' group.pk %}" formnovalidate class="btn-danger w-full" data-confirm-btn>Apagar grupo</button>
+    {% endif %}
+  </div>
+</form>
+{% if group %}
+<script>
+  // O botão «Apagar» está dentro do formulário principal: pede confirmação antes de enviar
+  document.querySelector("[data-confirm-btn]").addEventListener("click", ev => {
+    if (!window.confirm("Apagar o grupo «{{ group.name|escapejs }}»? Os membros perdem as permissões deste grupo.")) ev.preventDefault();
+  });
+</script>
+{% endif %}
+{% endblock %}

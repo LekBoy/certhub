@@ -1,0 +1,286 @@
+"""Administração dentro do CertHub: utilizadores, grupos, tokens, definições e auditoria."""
+import os
+import secrets
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import Group, User
+from django.contrib.auth.views import PasswordChangeView
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
+from django.views.decorators.http import require_POST
+
+from signing.models import SigningToken, SiteSettings
+
+from .audit import audit
+from .forms import GroupForm, PasswordForm, SiteSettingsForm, UserForm
+from .models import AuditEvent, UserProfile
+from .permissions import PERMISSION_GROUPS, has_admin, perm_required
+
+
+class Lockout(Exception):
+    pass
+
+
+def _check_not_locked_out():
+    if not has_admin():
+        raise Lockout
+
+
+LOCKOUT_MSG = "Operação cancelada: ficaria sem nenhum utilizador ativo capaz de gerir utilizadores."
+
+
+def _temp_password(user) -> str:
+    raw = secrets.token_urlsafe(9)
+    user.set_password(raw)
+    user.save(update_fields=["password"])
+    profile = UserProfile.for_user(user)
+    profile.must_change_password = True
+    profile.save(update_fields=["must_change_password"])
+    return raw
+
+
+def _can_edit_user(actor, target) -> bool:
+    return actor.is_superuser or not target.is_superuser
+
+
+# ------------------------------------------------------------------ utilizadores
+@perm_required("portal.manage_users")
+def users(request):
+    qs = User.objects.prefetch_related("groups").annotate(n_signed=Count("signing_requests"))
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "")
+    group = request.GET.get("group", "")
+    if q:
+        qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q)
+                       | Q(email__icontains=q))
+    if status == "active":
+        qs = qs.filter(is_active=True)
+    elif status == "inactive":
+        qs = qs.filter(is_active=False)
+    if group.isdigit():
+        qs = qs.filter(groups__pk=int(group))
+    page = Paginator(qs.order_by("username"), 25).get_page(request.GET.get("page"))
+    keep = "&".join(f"{k}={v}" for k, v in (("q", q), ("status", status), ("group", group)) if v)
+    return render(request, "portal/users.html", {
+        "page": page, "q": q, "status": status, "group": group, "groups": Group.objects.all(), "keep": keep,
+    })
+
+
+@perm_required("portal.manage_users")
+def user_create(request):
+    form = UserForm(request.POST or None, actor=request.user)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            user = form.save()
+            raw = _temp_password(user)
+        audit(request, "user_created", user.username,
+              f"grupos: {', '.join(g.name for g in user.groups.all()) or '—'}")
+        return render(request, "portal/user_credentials.html", {"target": user, "temp_password": raw, "created": True})
+    return render(request, "portal/user_form.html", {"form": form, "target": None})
+
+
+@perm_required("portal.manage_users")
+def user_edit(request, pk):
+    target = get_object_or_404(User, pk=pk)
+    if not _can_edit_user(request.user, target):
+        messages.error(request, "Só um superadministrador pode alterar outro superadministrador.")
+        return redirect("portal:users")
+    form = UserForm(request.POST or None, instance=target, actor=request.user)
+    if request.method == "POST" and form.is_valid():
+        if target.pk == request.user.pk and not form.cleaned_data["is_active"]:
+            form.add_error("is_active", "Não pode desativar a sua própria conta.")
+        else:
+            try:
+                with transaction.atomic():
+                    before = ", ".join(sorted(g.name for g in target.groups.all()))
+                    form.save()
+                    _check_not_locked_out()
+                after = ", ".join(sorted(g.name for g in target.groups.all()))
+                audit(request, "user_updated", target.username,
+                      f"grupos: {before or '—'} → {after or '—'}; ativo: {target.is_active}")
+                messages.success(request, f"Utilizador «{target.username}» atualizado.")
+                return redirect("portal:users")
+            except Lockout:
+                form = UserForm(request.POST, instance=User.objects.get(pk=pk), actor=request.user)
+                messages.error(request, LOCKOUT_MSG)
+    return render(request, "portal/user_form.html", {
+        "form": form, "target": target,
+        "tokens": SigningToken.objects.filter(user=target).order_by("-created_at")[:5],
+        "n_signed": target.signing_requests.count(),
+    })
+
+
+@perm_required("portal.manage_users")
+@require_POST
+def user_reset_password(request, pk):
+    target = get_object_or_404(User, pk=pk)
+    if not _can_edit_user(request.user, target):
+        messages.error(request, "Só um superadministrador pode alterar outro superadministrador.")
+        return redirect("portal:users")
+    raw = _temp_password(target)
+    audit(request, "password_reset", target.username)
+    return render(request, "portal/user_credentials.html", {"target": target, "temp_password": raw, "created": False})
+
+
+@perm_required("portal.manage_users")
+@require_POST
+def user_delete(request, pk):
+    target = get_object_or_404(User, pk=pk)
+    if target.pk == request.user.pk:
+        messages.error(request, "Não pode apagar a sua própria conta.")
+    elif not _can_edit_user(request.user, target):
+        messages.error(request, "Só um superadministrador pode apagar outro superadministrador.")
+    elif target.signing_requests.exists():
+        messages.error(request, "Este utilizador tem histórico de assinaturas e não pode ser apagado. Desative a conta.")
+    else:
+        try:
+            with transaction.atomic():
+                name = target.username
+                target.delete()
+                _check_not_locked_out()
+            audit(request, "user_deleted", name)
+            messages.success(request, f"Utilizador «{name}» apagado.")
+        except Lockout:
+            messages.error(request, LOCKOUT_MSG)
+    return redirect("portal:users")
+
+
+# ------------------------------------------------------------------------ grupos
+@perm_required("portal.manage_groups")
+def groups(request):
+    return render(request, "portal/groups.html", {
+        "groups": Group.objects.annotate(n_members=Count("user", distinct=True)).prefetch_related("permissions")
+        .order_by("name"),
+    })
+
+
+def _group_form_context(form, group):
+    return {"form": form, "group": group, "permission_groups": PERMISSION_GROUPS,
+            "selected": set(form["perms"].value() or [])}
+
+
+@perm_required("portal.manage_groups")
+def group_create(request):
+    form = GroupForm(request.POST or None, actor=request.user)
+    if request.method == "POST" and form.is_valid():
+        group = form.save()
+        audit(request, "group_created", group.name, f"permissões: {', '.join(sorted(form.cleaned_data['perms'])) or '—'}")
+        messages.success(request, f"Grupo «{group.name}» criado.")
+        return redirect("portal:groups")
+    return render(request, "portal/group_form.html", _group_form_context(form, None))
+
+
+@perm_required("portal.manage_groups")
+def group_edit(request, pk):
+    group = get_object_or_404(Group, pk=pk)
+    form = GroupForm(request.POST or None, instance=group, actor=request.user)
+    if request.method == "POST" and form.is_valid():
+        try:
+            with transaction.atomic():
+                form.save()
+                _check_not_locked_out()
+            audit(request, "group_updated", group.name,
+                  f"permissões: {', '.join(sorted(form.cleaned_data['perms'])) or '—'}; "
+                  f"membros: {form.cleaned_data['members'].count()}")
+            messages.success(request, f"Grupo «{group.name}» atualizado.")
+            return redirect("portal:groups")
+        except Lockout:
+            messages.error(request, LOCKOUT_MSG)
+            form = GroupForm(request.POST, instance=Group.objects.get(pk=pk), actor=request.user)
+    return render(request, "portal/group_form.html", _group_form_context(form, group))
+
+
+@perm_required("portal.manage_groups")
+@require_POST
+def group_delete(request, pk):
+    group = get_object_or_404(Group, pk=pk)
+    try:
+        with transaction.atomic():
+            name = group.name
+            group.delete()
+            _check_not_locked_out()
+        audit(request, "group_deleted", name)
+        messages.success(request, f"Grupo «{name}» apagado.")
+    except Lockout:
+        messages.error(request, LOCKOUT_MSG)
+    return redirect("portal:groups")
+
+
+# ------------------------------------------------------------------------ tokens
+@perm_required("portal.manage_tokens")
+def tokens_all(request):
+    qs = SigningToken.objects.select_related("user").order_by("-created_at")
+    return render(request, "portal/tokens_all.html", {"tokens": qs})
+
+
+@perm_required("portal.manage_tokens")
+@require_POST
+def token_revoke(request, pk):
+    token = get_object_or_404(SigningToken, pk=pk)
+    token.is_active = False
+    token.save(update_fields=["is_active"])
+    audit(request, "token_revoked", f"{token.name} ({token.user.username})")
+    messages.success(request, f"Token «{token.name}» de {token.user.username} revogado.")
+    return redirect("portal:tokens_all")
+
+
+# -------------------------------------------------------------------- definições
+ENV_VARS = ["SM_HOST", "SM_API_KEY", "SM_CLIENT_CERT_FILE", "SM_CLIENT_CERT_PASSWORD"]
+
+
+@perm_required("portal.manage_settings")
+def settings_page(request):
+    site = SiteSettings.load()
+    form = SiteSettingsForm(request.POST or None, instance=site)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        audit(request, "settings_updated", "definições", ", ".join(sorted(form.changed_data)))
+        messages.success(request, "Definições guardadas.")
+        return redirect("portal:settings")
+    env = [(name, bool(os.environ.get(name))) for name in ENV_VARS]
+    return render(request, "portal/settings.html", {"form": form, "env": env})
+
+
+# ---------------------------------------------------------------------- auditoria
+@perm_required("portal.view_audit")
+def audit_log(request):
+    qs = AuditEvent.objects.all()
+    q = request.GET.get("q", "").strip()
+    if q:
+        qs = qs.filter(Q(username__icontains=q) | Q(action__icontains=q) | Q(target__icontains=q)
+                       | Q(detail__icontains=q))
+    page = Paginator(qs, 30).get_page(request.GET.get("page"))
+    return render(request, "portal/audit.html", {"page": page, "q": q, "keep": f"q={q}" if q else ""})
+
+
+# ------------------------------------------------------------------------- conta
+@login_required
+def account(request):
+    if request.method == "POST":
+        u = request.user
+        u.first_name = request.POST.get("first_name", "").strip()[:150]
+        u.last_name = request.POST.get("last_name", "").strip()[:150]
+        u.email = request.POST.get("email", "").strip()[:254]
+        u.save(update_fields=["first_name", "last_name", "email"])
+        messages.success(request, "Dados guardados.")
+        return redirect("portal:account")
+    return render(request, "portal/account.html")
+
+
+class PasswordChange(PasswordChangeView):
+    template_name = "portal/password.html"
+    form_class = PasswordForm
+    success_url = reverse_lazy("portal:dashboard")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        profile = UserProfile.for_user(self.request.user)
+        if profile.must_change_password:
+            profile.must_change_password = False
+            profile.save(update_fields=["must_change_password"])
+        messages.success(self.request, "Palavra-passe alterada.")
+        return response

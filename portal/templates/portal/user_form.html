@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{% if target %}Editar utilizador{% else %}Novo utilizador{% endif %}{% endblock %}
+{% block heading %}{% if target %}{{ target.username }}{% else %}Novo utilizador{% endif %}{% endblock %}
+{% block actions %}<a href="{% url 'portal:users' %}" class="btn-secondary">Voltar</a>{% endblock %}
+{% block content %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" class="card flex flex-col gap-6 p-6 lg:col-span-2">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div class="sm:col-span-2">{% include "_field.html" with field=form.username %}</div>
+      {% include "_field.html" with field=form.first_name %}
+      {% include "_field.html" with field=form.last_name %}
+      <div class="sm:col-span-2">{% include "_field.html" with field=form.email %}</div>
+    </div>
+    <div>
+      <p class="label">Grupos</p>
+      <div class="grid gap-2 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
+        {% for choice in form.groups %}
+        <label class="flex items-center gap-2 text-sm text-slate-700">{{ choice.tag }} {{ choice.choice_label }}</label>
+        {% empty %}<p class="text-sm text-slate-500">Ainda não há grupos.</p>{% endfor %}
+      </div>
+      {% for e in form.groups.errors %}<p class="mt-1 text-xs text-red-600">{{ e }}</p>{% endfor %}
+      <p class="mt-1 text-xs text-slate-500">As permissões vêm dos grupos. Gira-os em <a class="text-indigo-600" href="{% url 'portal:groups' %}">Grupos</a>.</p>
+    </div>
+    <div class="space-y-4 border-t border-slate-100 pt-5">
+      {% include "_field.html" with field=form.is_active %}
+      {% if form.is_superuser %}{% include "_field.html" with field=form.is_superuser %}{% endif %}
+    </div>
+    {% if not target %}<p class="rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-800 ring-1 ring-inset ring-indigo-200">Será gerada uma palavra-passe temporária, mostrada uma só vez. O utilizador terá de a trocar no primeiro acesso.</p>{% endif %}
+    <div class="flex justify-end gap-3"><a href="{% url 'portal:users' %}" class="btn-secondary">Cancelar</a><button class="btn-primary">{% if target %}Guardar{% else %}Criar utilizador{% endif %}</button></div>
+  </form>
+
+  {% if target %}
+  <div class="space-y-6">
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Resumo</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-slate-500">Criado</dt><dd>{{ target.date_joined|date:"d/m/Y" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Último acesso</dt><dd>{{ target.last_login|date:"d/m/Y H:i"|default:"nunca" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Assinaturas</dt><dd>{{ n_signed }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Tokens ativos</dt><dd>{{ tokens|length }}</dd></div>
+      </dl>
+    </section>
+    <section class="card space-y-3 p-5">
+      <h2 class="font-semibold text-slate-900">Ações</h2>
+      <form method="post" action="{% url 'portal:user_reset_password' target.pk %}" data-confirm="Gerar uma nova palavra-passe temporária? A atual deixa de funcionar.">{% csrf_token %}
+        <button class="btn-secondary w-full">Repor palavra-passe</button></form>
+      {% if target.pk != user.pk %}
+      <form method="post" action="{% url 'portal:user_delete' target.pk %}" data-confirm="Apagar o utilizador «{{ target.username }}»? Não pode ser desfeito. Se tiver histórico de assinaturas, desative-o em vez de apagar.">{% csrf_token %}
+        <button class="btn-danger w-full">Apagar utilizador</button></form>
+      {% endif %}
+    </section>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

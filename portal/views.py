@@ -9,13 +9,15 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from signing.models import SigningCertificate, SigningRequest, SigningToken
+from signing.models import SigningCertificate, SigningRequest, SigningToken, SiteSettings
+
+from .audit import audit
 
 
 def _visible_requests(user):
-    """Auditores (view_signingrequest) veem tudo; os restantes só os seus pedidos."""
+    """Quem tem «ver o histórico de todos» vê tudo; os restantes só os seus pedidos."""
     qs = SigningRequest.objects.select_related("user", "certificate")
-    return qs if user.has_perm("signing.view_signingrequest") else qs.filter(user=user)
+    return qs if user.has_perm("portal.view_all_history") else qs.filter(user=user)
 
 
 @login_required
@@ -31,7 +33,8 @@ def dashboard(request):
         "signed_30d": month.filter(status=SigningRequest.Status.OK).count(),
         "failed_30d": month.filter(status=SigningRequest.Status.FAILED).count(),
     }
-    attention = sorted((c for c in certs if c.status in ("expiring", "expired")), key=lambda c: c.not_after)
+    attention = sorted((c for c in certs if c.is_active and c.attention or c.status == "expired"),
+                       key=lambda c: c.not_after)
     return render(request, "portal/dashboard.html", {
         "stats": stats, "attention": attention, "recent": reqs[:8], "total_certs": len(certs),
     })
@@ -56,7 +59,7 @@ def history(request):
     keep = "&".join(f"{k}={v}" for k, v in (("status", status), ("q", q)) if v)
     return render(request, "portal/history.html", {
         "page": page, "status": status, "q": q, "keep": keep,
-        "all_users": request.user.has_perm("signing.view_signingrequest"),
+        "all_users": request.user.has_perm("portal.view_all_history"),
     })
 
 
@@ -64,17 +67,20 @@ def history(request):
 @permission_required("signing.can_sign", raise_exception=True)
 def tokens(request):
     raw = None
+    site = SiteSettings.load()
     if request.method == "POST":
         name = request.POST.get("name", "").strip()[:255]
         if not name:
             messages.error(request, "Indique uma descrição para o token (ex.: pipeline PAD).")
         else:
             token = SigningToken(user=request.user, name=name)
-            raw = token.set_new_token()
+            raw = token.set_new_token(site.token_valid_days)
             token.save()
+            audit(request, "token_created", f"{name} ({request.user.username})")
     return render(request, "portal/tokens.html", {
         "tokens": SigningToken.objects.filter(user=request.user).order_by("-created_at"),
         "raw_token": raw, "api_url": request.build_absolute_uri(reverse("signing:api_sign")),
+        "valid_days": site.token_valid_days,
     })
 
 
@@ -84,5 +90,6 @@ def revoke_token(request, pk):
     token = get_object_or_404(SigningToken, pk=pk, user=request.user)
     token.is_active = False
     token.save(update_fields=["is_active"])
+    audit(request, "token_revoked", f"{token.name} ({request.user.username})")
     messages.success(request, f"Token «{token.name}» revogado.")
     return redirect("portal:tokens")

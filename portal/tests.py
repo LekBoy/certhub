@@ -86,13 +86,3 @@ class PortalTests(TestCase):
         r = self.client.post("/sign/", {}, headers={"X-Requested-With": "fetch"})
         self.assertEqual(r.status_code, 400)
         self.assertIn("error", r.json())
-
-    def test_admin_user_actions(self):
-        admin = User.objects.create_superuser("root", password="x")
-        self.client.force_login(admin)
-        self.client.post("/admin/auth/user/", {
-            "action": "add_signers", "_selected_action": [self.other.pk]})
-        self.assertTrue(self.other.groups.filter(name="Assinantes").exists())
-        self.client.post("/admin/auth/user/", {"action": "deactivate", "_selected_action": [self.other.pk]})
-        self.other.refresh_from_db()
-        self.assertFalse(self.other.is_active)

@@ -21,6 +21,9 @@ admin.site.site_header = 'CertHub · Administração'
 admin.site.site_title = 'CertHub'
 admin.site.index_title = 'Utilizadores, grupos e certificados'
 
+# O Django admin fica só para superadministradores (emergência); a gestão normal é feita no CertHub.
+admin.site.has_permission = lambda request: request.user.is_active and request.user.is_superuser
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('signing.urls')),

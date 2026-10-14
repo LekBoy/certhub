@@ -5,13 +5,14 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from . import service, signer
 from .certinfo import CertificateError, parse_public_certificate
-from .models import SigningCertificate, SigningRequest, SigningToken
+from .models import SigningCertificate, SigningRequest, SigningToken, SiteSettings
 from .signer import SigningError
 
 
@@ -98,8 +99,10 @@ class SignApiTests(TestCase):
 
     def test_timestamp_optional(self):
         for url, expected in (("", False), ("http://tsa.interna/ts", True)):
-            with self.settings(SIGN_TIMESTAMP_URL=url), \
-                    mock.patch("signing.signer.subprocess.run", side_effect=self.fake_run) as run:
+            site = SiteSettings.load()
+            site.timestamp_url = url
+            site.save()
+            with mock.patch("signing.signer.subprocess.run", side_effect=self.fake_run) as run:
                 self.post()
             args = run.call_args.args[0]
             self.assertEqual("/tr" in args, expected)
@@ -125,3 +128,122 @@ class SignApiTests(TestCase):
         self.assertEqual(self.client.get("/sign/").status_code, 302)
         self.client.force_login(self.user)
         self.assertEqual(self.client.get("/sign/").status_code, 200)
+
+
+@override_settings(SIGN_VERIFY=False)
+class SigningMethodTests(TestCase):
+    def make(self, **kw):
+        return SigningCertificate.objects.create(
+            name=kw.pop("name", "c"), thumbprint="AB" * 20, subject="CN=x", not_before=timezone.now(),
+            not_after=timezone.now() + datetime.timedelta(days=30), **kw)
+
+    def test_store_method(self):
+        args = signer.build_command(self.make(), "f.dll")
+        self.assertIn("/sm", args)
+        self.assertEqual(args[args.index("/sha1") + 1], "AB" * 20)
+
+    def test_keylocker_thumbprint_uses_user_store(self):
+        args = signer.build_command(self.make(method="keylocker_thumbprint"), "f.dll")
+        self.assertNotIn("/sm", args)
+        self.assertNotIn("/s", args)
+        self.assertEqual(args[-1], "f.dll")
+
+    def test_keylocker_alias(self):
+        cert = self.make(method="keylocker_alias", csp_name="DigiCert Signing Manager KSP",
+                         keypair_alias="key-1", cert_file_path=r"C:\\certs\\a.cer")
+        args = signer.build_command(cert, "f.dll")
+        self.assertEqual(args[args.index("/csp") + 1], "DigiCert Signing Manager KSP")
+        self.assertEqual(args[args.index("/kc") + 1], "key-1")
+        self.assertEqual(args[args.index("/f") + 1], r"C:\\certs\\a.cer")
+
+    def test_keylocker_alias_requires_fields(self):
+        with self.assertRaises(signer.SigningError):
+            signer.build_command(self.make(method="keylocker_alias"), "f.dll")
+
+    def test_custom_command_placeholders(self):
+        cert = self.make(method="custom", custom_command="{signtool}\nsign\n/sha1\n{thumbprint}\n{file}")
+        site = SiteSettings.load()
+        self.assertEqual(signer.build_command(cert, "f.dll", site),
+                         [site.signtool_path, "sign", "/sha1", "AB" * 20, "f.dll"])
+
+    def test_custom_command_unknown_placeholder(self):
+        cert = self.make(method="custom", custom_command="x\n{nope}\n{file}")
+        with self.assertRaises(signer.SigningError):
+            signer.build_command(cert, "f.dll")
+
+    def test_cert_timestamp_overrides_global(self):
+        cert = self.make(timestamp_url="http://own/ts")
+        args = signer.build_command(cert, "f.dll")
+        self.assertEqual(args[args.index("/tr") + 1], "http://own/ts")
+
+
+class AccessAndLimitTests(TestCase):
+    def setUp(self):
+        s = SiteSettings.load()
+        s.verify_after_sign = False
+        s.save()
+        self.group = Group.objects.create(name="PAD")
+        self.user = User.objects.create_user("dev", password="x")
+        self.user.user_permissions.add(Permission.objects.get(codename="can_sign"))
+        self.cert = SigningCertificate.objects.create(
+            name="c", thumbprint="CD" * 20, subject="CN=x", not_before=timezone.now(),
+            not_after=timezone.now() + datetime.timedelta(days=30))
+
+    def upload(self):
+        return SimpleUploadedFile("a.dll", b"MZ")
+
+    def fake_run(self, args, **kw):
+        return mock.Mock(returncode=0, stdout="", stderr="")
+
+    def test_group_restriction(self):
+        self.cert.allowed_groups.add(self.group)
+        self.assertFalse(self.cert.usable_by(self.user))
+        self.user.groups.add(self.group)
+        self.assertTrue(self.cert.usable_by(self.user))
+
+    def test_restricted_cert_rejected_on_sign(self):
+        self.cert.allowed_groups.add(self.group)
+        with self.assertRaises(service.RejectedUpload):
+            service.sign_upload(self.upload(), self.user, self.cert, via_api=False)
+
+    def test_usage_counts_only_successful_this_period(self):
+        for st in ("ok", "ok", "failed"):
+            SigningRequest.objects.create(user=self.user, certificate=self.cert, filename="a.dll", size=1,
+                                          sha256_original="a" * 64, status=st)
+        self.cert.annual_limit = 4
+        self.assertEqual(self.cert.signed_in_period, 2)
+        self.assertEqual(self.cert.usage_percent, 50)
+        self.assertEqual(self.cert.limit_status, "ok")
+        self.cert.annual_limit = 2
+        self.assertEqual(self.cert.limit_status, "reached")
+        self.cert.annual_limit = 5
+        self.assertEqual(self.cert.limit_status, "ok")  # 40%
+
+    def test_warning_at_80_percent(self):
+        for _ in range(4):
+            SigningRequest.objects.create(user=self.user, certificate=self.cert, filename="a.dll", size=1,
+                                          sha256_original="a" * 64, status="ok")
+        self.cert.annual_limit = 5
+        self.assertEqual(self.cert.limit_status, "warning")
+
+    def test_block_at_limit(self):
+        SigningRequest.objects.create(user=self.user, certificate=self.cert, filename="a.dll", size=1,
+                                      sha256_original="a" * 64, status="ok")
+        self.cert.annual_limit = 1
+        self.cert.save()
+        with mock.patch("signing.signer.subprocess.run", side_effect=self.fake_run):
+            service.sign_upload(self.upload(), self.user, self.cert, via_api=False)  # sem bloqueio: assina
+            s = SiteSettings.load()
+            s.block_at_limit = True
+            s.save()
+            with self.assertRaises(service.LimitReached):
+                service.sign_upload(self.upload(), self.user, self.cert, via_api=False)
+
+    def test_period_start_follows_subscription_anniversary(self):
+        today = timezone.localdate()
+        self.cert.subscription_start = datetime.date(today.year - 3, today.month, 1)
+        self.assertEqual(self.cert.period_start, datetime.date(today.year, today.month, 1))
+
+    def test_attention_reasons(self):
+        self.cert.renewal_date = timezone.localdate() + datetime.timedelta(days=10)
+        self.assertTrue(any("Renovação" in r for r in self.cert.attention))

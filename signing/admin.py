@@ -14,7 +14,7 @@ class SigningCertificateForm(forms.ModelForm):
 
     class Meta:
         model = SigningCertificate
-        fields = ("name", "store_name", "machine_store", "is_active")
+        fields = ("name", "method", "store_name", "machine_store", "is_active")
 
     def clean(self):
         data = super().clean()

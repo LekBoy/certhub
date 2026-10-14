@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Utilizadores{% endblock %}
+{% block heading %}Utilizadores{% endblock %}
+{% block actions %}<a href="{% url 'portal:user_create' %}" class="btn-primary">Novo utilizador</a>{% endblock %}
+{% block content %}
+<form method="get" class="mb-5 flex flex-col gap-3 sm:flex-row">
+  <input type="search" name="q" value="{{ q }}" placeholder="Nome, utilizador ou e-mail…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:max-w-sm">
+  <select name="status" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+    <option value="">Todos os estados</option>
+    <option value="active" {% if status == "active" %}selected{% endif %}>Ativos</option>
+    <option value="inactive" {% if status == "inactive" %}selected{% endif %}>Desativados</option>
+  </select>
+  <select name="group" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+    <option value="">Todos os grupos</option>
+    {% for g in groups %}<option value="{{ g.pk }}" {% if group == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+  </select>
+  <button class="btn-secondary" type="submit">Filtrar</button>
+</form>
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+  <table class="min-w-full divide-y divide-slate-200">
+    <thead class="bg-slate-50"><tr><th class="th">Utilizador</th><th class="th">Grupos</th><th class="th">Estado</th><th class="th">Último acesso</th><th class="th">Assinaturas</th><th class="th"></th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+    {% for u in page %}
+      <tr>
+        <td class="td"><div class="font-medium text-slate-900">{{ u.get_full_name|default:u.username }}{% if u.is_superuser %} <span class="badge-amber ml-1">Superadmin</span>{% endif %}</div>
+          <div class="text-xs text-slate-500">{{ u.username }}{% if u.email %} · {{ u.email }}{% endif %}</div></td>
+        <td class="td">{% for g in u.groups.all %}<span class="badge-slate mr-1">{{ g.name }}</span>{% empty %}<span class="text-slate-400">—</span>{% endfor %}</td>
+        <td class="td">{% if u.is_active %}<span class="badge-green">Ativo</span>{% else %}<span class="badge-slate">Desativado</span>{% endif %}</td>
+        <td class="td whitespace-nowrap">{{ u.last_login|date:"d/m/Y H:i"|default:"nunca" }}</td>
+        <td class="td">{{ u.n_signed }}</td>
+        <td class="td text-right"><a href="{% url 'portal:user_edit' u.pk %}" class="btn-secondary !px-3 !py-1.5">Editar</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-slate-500">Nenhum utilizador encontrado.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm text-slate-600">
+    <span>Página {{ page.number }} de {{ page.paginator.num_pages }} · {{ page.paginator.count }} utilizadores</span>
+    <div class="flex gap-2">
+      {% if page.has_previous %}<a class="btn-secondary" href="?{% if keep %}{{ keep }}&{% endif %}page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+      {% if page.has_next %}<a class="btn-secondary" href="?{% if keep %}{{ keep }}&{% endif %}page={{ page.next_page_number }}">Seguinte</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

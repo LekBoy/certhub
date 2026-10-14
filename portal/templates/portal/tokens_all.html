@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Todos os tokens{% endblock %}
+{% block heading %}Tokens de todos os utilizadores{% endblock %}
+{% block content %}
+<div class="card overflow-hidden"><div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-slate-200">
+  <thead class="bg-slate-50"><tr><th class="th">Descrição</th><th class="th">Utilizador</th><th class="th">Prefixo</th><th class="th">Expira</th><th class="th">Último uso</th><th class="th">Estado</th><th class="th"></th></tr></thead>
+  <tbody class="divide-y divide-slate-100">
+  {% for t in tokens %}
+    <tr>
+      <td class="td font-medium text-slate-900">{{ t.name }}</td>
+      <td class="td">{{ t.user.username }}</td>
+      <td class="td font-mono text-xs">{{ t.token_prefix }}…</td>
+      <td class="td whitespace-nowrap">{{ t.expires_at|date:"d/m/Y" }}</td>
+      <td class="td whitespace-nowrap">{{ t.last_used|date:"d/m/Y H:i"|default:"nunca" }}</td>
+      <td class="td">{% if t.valid %}<span class="badge-green">Ativo</span>{% elif t.is_active %}<span class="badge-slate">Expirado</span>{% else %}<span class="badge-slate">Revogado</span>{% endif %}</td>
+      <td class="td text-right">{% if t.valid %}<form method="post" action="{% url 'portal:token_revoke' t.pk %}" data-confirm="Revogar o token «{{ t.name }}» de {{ t.user.username }}? Os pipelines que o usam deixam de funcionar.">{% csrf_token %}<button class="btn-danger !px-3 !py-1.5">Revogar</button></form>{% endif %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7" class="px-5 py-12 text-center text-sm text-slate-500">Ainda não há tokens.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

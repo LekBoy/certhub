@@ -1,0 +1,8 @@
+{% if c.annual_limit %}
+  <div class="w-40">
+    <div class="flex justify-between text-xs"><span>{{ c.signed_in_period }} / {{ c.annual_limit }}</span><span>{{ c.usage_percent }}%</span></div>
+    <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full {% if c.limit_status == 'reached' %}bg-red-500{% elif c.limit_status == 'warning' %}bg-amber-500{% else %}bg-emerald-500{% endif %}" style="width: {% if c.usage_percent > 100 %}100{% else %}{{ c.usage_percent }}{% endif %}%"></div></div>
+  </div>
+{% else %}
+  <span class="text-sm">{{ c.signed_in_period }}</span> <span class="text-xs text-slate-400">sem limite definido</span>
+{% endif %}

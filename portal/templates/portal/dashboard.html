@@ -17,11 +17,11 @@
     <ul class="divide-y divide-slate-100">
       {% for c in attention %}
       <li class="flex items-center justify-between gap-3 px-5 py-3.5">
-        <div class="min-w-0"><p class="truncate text-sm font-medium text-slate-900">{{ c.name }}</p><p class="text-xs text-slate-500">{{ c.not_after|date:"d/m/Y" }}</p></div>
+        <div class="min-w-0"><p class="truncate text-sm font-medium text-slate-900">{{ c.name }}</p><p class="text-xs text-slate-500">{{ c.attention|join:" · " }}</p></div>
         {% include "_cert_badge.html" %}
       </li>
       {% empty %}
-      <li class="px-5 py-10 text-center text-sm text-slate-500">{% if total_certs %}Tudo em ordem. Nenhum certificado a expirar.{% else %}Ainda não há certificados registados.{% endif %}</li>
+      <li class="px-5 py-10 text-center text-sm text-slate-500">{% if total_certs %}Tudo em ordem.{% else %}Ainda não há certificados registados.{% endif %}</li>
       {% endfor %}
     </ul>
   </section>

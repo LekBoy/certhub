@@ -23,6 +23,43 @@
         <div class="sm:col-span-2"><dt class="text-slate-500">SHA-256</dt><dd class="break-all font-mono text-xs">{{ cert.sha256 }}</dd></div>
       </dl>
     </section>
+    <section class="card">
+      <div class="card-header"><h2 class="font-semibold text-slate-900">Onde é usado</h2><span class="text-sm text-slate-500">{{ usages|length }} {% if usages|length == 1 %}utilização{% else %}utilizações{% endif %}</span></div>
+      <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50"><tr><th class="th">Servidor</th><th class="th">IP</th><th class="th">Porta</th><th class="th">Aplicação</th><th class="th">Ambiente</th><th class="th"></th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+        {% for u in usages %}
+          <tr>
+            <td class="td whitespace-nowrap font-medium text-slate-900">{{ u.hostname|default:"—" }}{% if u.notes %}<div class="text-xs font-normal text-slate-500">{{ u.notes }}</div>{% endif %}</td>
+            <td class="td whitespace-nowrap font-mono text-xs">{{ u.ip_address|default:"—" }}</td>
+            <td class="td">{{ u.port|default:"—" }}</td>
+            <td class="td">{{ u.application|default:"—" }}</td>
+            <td class="td">{% if u.environment %}<span class="badge-slate">{{ u.get_environment_display }}</span>{% else %}—{% endif %}</td>
+            <td class="td whitespace-nowrap text-right">{% if can_manage %}
+              <a href="{% url 'inventory:usage_edit' u.pk %}" class="text-sm font-medium text-brand-600 hover:text-brand-500">Editar</a>
+              <form method="post" action="{% url 'inventory:usage_delete' u.pk %}" class="ml-3 inline" data-confirm="Remover esta utilização?">{% csrf_token %}<button class="text-sm font-medium text-red-600 hover:text-red-500">Remover</button></form>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="px-5 py-8 text-center text-sm text-slate-500">Ainda não foi indicado onde este certificado é usado.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      {% if can_manage %}
+      <form method="post" action="{% url 'inventory:usage_add' cert.pk %}" class="border-t border-slate-100 p-5">{% csrf_token %}
+        <p class="text-sm font-medium text-slate-700">Adicionar utilização</p>
+        {% if usage_form.non_field_errors %}<p class="mt-2 text-xs text-red-600">{{ usage_form.non_field_errors.0 }}</p>{% endif %}
+        <div class="mt-3 grid gap-4 sm:grid-cols-3">
+          {% include "_field.html" with field=usage_form.hostname %}
+          {% include "_field.html" with field=usage_form.ip_address %}
+          {% include "_field.html" with field=usage_form.port %}
+          {% include "_field.html" with field=usage_form.application %}
+          {% include "_field.html" with field=usage_form.environment %}
+          {% include "_field.html" with field=usage_form.notes %}
+        </div>
+        <div class="mt-4 flex justify-end"><button class="btn-primary">Adicionar</button></div>
+      </form>
+      {% endif %}
+    </section>
     {% if cert.san_list or cert.eku_list or cert.ku_list %}
     <section class="card p-6">
       <h2 class="font-semibold text-slate-900">Utilização</h2>

@@ -2,6 +2,7 @@ import hashlib
 import secrets
 from datetime import timedelta
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -98,9 +99,7 @@ class InventoryCertificate(models.Model):
                                     related_name="inventory_uploads", editable=False)
 
     # dados geridos por pessoas
-    server = models.CharField("servidor / local", max_length=255, blank=True)
     owner = models.CharField("responsável", max_length=255, blank=True)
-    purpose = models.CharField("utilização", max_length=255, blank=True)
     notes = models.TextField("notas", blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -135,3 +134,50 @@ class InventoryCertificate(models.Model):
         if self.not_after <= timezone.now():
             return "expired"
         return "expiring" if self.days_left <= ALERT_DAYS else "ok"
+
+    @property
+    def usage_summary(self):
+        """Resumo curto de onde é usado, para listas."""
+        names = [u.where for u in self.usages.all()]
+        return ", ".join(names[:2]) + (f" +{len(names) - 2}" if len(names) > 2 else "")
+
+
+class CertificateUsage(models.Model):
+    """Onde um certificado está a ser usado: servidor, IP, porta e aplicação. Um certificado pode ter vários."""
+
+    class Environment(models.TextChoices):
+        PRODUCTION = "prod", "Produção"
+        STAGING = "staging", "Teste"
+        DEV = "dev", "Desenvolvimento"
+
+    certificate = models.ForeignKey(InventoryCertificate, on_delete=models.CASCADE, related_name="usages")
+    hostname = models.CharField("servidor", max_length=255, blank=True)
+    ip_address = models.GenericIPAddressField("IP", null=True, blank=True)
+    port = models.PositiveIntegerField("porta", null=True, blank=True,
+                                       validators=[MinValueValidator(1), MaxValueValidator(65535)])
+    application = models.CharField("aplicação", max_length=255, blank=True)
+    environment = models.CharField("ambiente", max_length=10, choices=Environment.choices, blank=True)
+    notes = models.CharField("notas", max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["hostname", "ip_address", "port", "id"]
+
+    def __str__(self):
+        return self.where
+
+    @property
+    def endpoint(self):
+        if self.ip_address and self.port:
+            return f"{self.ip_address}:{self.port}"
+        return str(self.ip_address or "") or (f":{self.port}" if self.port else "")
+
+    @property
+    def where(self):
+        """«VM-APP01 (10.0.0.5:443) · Intranet»"""
+        parts = [self.hostname or self.endpoint or "—"]
+        if self.hostname and self.endpoint:
+            parts[0] += f" ({self.endpoint})"
+        if self.application:
+            parts.append(self.application)
+        return " · ".join(parts)

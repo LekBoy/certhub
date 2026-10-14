@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Editar utilização{% endblock %}
+{% block heading %}Editar utilização{% endblock %}
+{% block actions %}<a href="{% url 'inventory:detail' cert.pk %}" class="btn-secondary">Voltar</a>{% endblock %}
+{% block content %}
+<form method="post" class="card mx-auto flex max-w-2xl flex-col gap-5 p-6">{% csrf_token %}
+  <p class="text-sm text-slate-600">Certificado: <strong>{{ cert.name }}</strong></p>
+  {% if form.non_field_errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="grid gap-5 sm:grid-cols-2">
+    {% include "_field.html" with field=form.hostname %}
+    {% include "_field.html" with field=form.ip_address %}
+    {% include "_field.html" with field=form.port %}
+    {% include "_field.html" with field=form.environment %}
+  </div>
+  {% include "_field.html" with field=form.application %}
+  {% include "_field.html" with field=form.notes %}
+  <div class="flex justify-end gap-3"><a href="{% url 'inventory:detail' cert.pk %}" class="btn-secondary">Cancelar</a><button class="btn-primary">Guardar</button></div>
+</form>
+{% endblock %}

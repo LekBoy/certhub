@@ -2,7 +2,17 @@ from django import forms
 
 from portal.forms import TailwindMixin
 
-from .models import InventoryCertificate
+from .models import CertificateUsage, InventoryCertificate
+
+
+class UsageFieldsMixin:
+    """Valida que a utilização indica pelo menos o servidor, o IP ou a aplicação."""
+
+    def clean(self):
+        data = super().clean()
+        if not any(data.get(f) for f in ("hostname", "ip_address", "application")):
+            raise forms.ValidationError("Indique pelo menos o servidor, o IP ou a aplicação.")
+        return data
 
 
 class UploadForm(TailwindMixin, forms.Form):
@@ -11,15 +21,28 @@ class UploadForm(TailwindMixin, forms.Form):
                                    help_text="Usada para todos os .pfx deste envio. Não é guardada.")
     include_ca = forms.BooleanField(label="Incluir certificados de CA / cadeia", required=False,
                                     help_text="Por omissão só entram os certificados finais (servidor, cliente, etc.).")
-    server = forms.CharField(label="Servidor / local", max_length=255, required=False,
-                             help_text="Aplica-se a todos os certificados deste envio (ex.: VM-APP01).")
+    hostname = forms.CharField(label="Servidor", max_length=255, required=False, help_text="Ex.: VM-APP01")
+    ip_address = forms.GenericIPAddressField(label="IP", required=False)
+    port = forms.IntegerField(label="Porta", required=False, min_value=1, max_value=65535)
+    application = forms.CharField(label="Aplicação", max_length=255, required=False, help_text="Ex.: Intranet, API de pagamentos")
+    environment = forms.ChoiceField(label="Ambiente", required=False,
+                                    choices=[("", "—")] + CertificateUsage.Environment.choices)
     owner = forms.CharField(label="Responsável", max_length=255, required=False)
-    purpose = forms.CharField(label="Utilização", max_length=255, required=False)
     notes = forms.CharField(label="Notas", required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
 
 class MetaForm(TailwindMixin, forms.ModelForm):
     class Meta:
         model = InventoryCertificate
-        fields = ["name", "server", "owner", "purpose", "notes"]
+        fields = ["name", "owner", "notes"]
         widgets = {"notes": forms.Textarea(attrs={"rows": 4})}
+
+
+class UsageForm(UsageFieldsMixin, TailwindMixin, forms.ModelForm):
+    class Meta:
+        model = CertificateUsage
+        fields = ["hostname", "ip_address", "port", "application", "environment", "notes"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["environment"].choices = [("", "—")] + CertificateUsage.Environment.choices

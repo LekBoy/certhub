@@ -21,12 +21,16 @@
     {% include "_field.html" with field=form.include_ca %}
   </section>
   <section class="card flex flex-col gap-5 p-6">
-    <h2 class="font-semibold text-slate-900">Dados a associar <span class="text-sm font-normal text-slate-500">(opcional, aplica-se a todos)</span></h2>
+    <h2 class="font-semibold text-slate-900">Onde é usado <span class="text-sm font-normal text-slate-500">(opcional, aplica-se a todos os certificados deste envio)</span></h2>
     <div class="grid gap-5 sm:grid-cols-2">
-      {% include "_field.html" with field=form.server %}
-      {% include "_field.html" with field=form.owner %}
+      {% include "_field.html" with field=form.hostname %}
+      {% include "_field.html" with field=form.ip_address %}
+      {% include "_field.html" with field=form.port %}
+      {% include "_field.html" with field=form.environment %}
     </div>
-    {% include "_field.html" with field=form.purpose %}
+    {% include "_field.html" with field=form.application %}
+    <h2 class="border-t border-slate-100 pt-5 font-semibold text-slate-900">Gestão</h2>
+    {% include "_field.html" with field=form.owner %}
     {% include "_field.html" with field=form.notes %}
   </section>
   <div class="flex justify-end gap-3"><a href="{% url 'inventory:list' %}" class="btn-secondary">Cancelar</a><button class="btn-primary">Carregar e ler certificados</button></div>

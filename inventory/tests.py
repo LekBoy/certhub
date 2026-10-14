@@ -12,7 +12,7 @@ from django.test import TestCase
 from signing.models import SiteSettings
 
 from . import parsing
-from .models import InventoryCertificate
+from .models import CertificateUsage, InventoryCertificate
 
 NOW = datetime.datetime.now(datetime.timezone.utc)
 
@@ -139,11 +139,16 @@ class InventoryViews(TestCase):
         b, _ = build("b.empresa.pt")
         c, ck = build("c.empresa.pt")
         r = self.upload(("a.pfx", pfx(a, ak)), ("b.crt", der(b)), ("c.pem", pem(c)),
-                        pfx_password="pw", server="VM-APP01", owner="Ana")
+                        pfx_password="pw", hostname="VM-APP01", ip_address="10.0.0.5", port="443",
+                        application="Intranet", owner="Ana")
         self.assertEqual((r.context["n_added"], r.context["n_error"]), (3, 0))
         self.assertEqual(InventoryCertificate.objects.count(), 3)
         row = InventoryCertificate.objects.get(name="a.empresa.pt")
-        self.assertEqual((row.server, row.owner, row.source_format, row.had_private_key), ("VM-APP01", "Ana", "pfx", True))
+        self.assertEqual((row.owner, row.source_format, row.had_private_key), ("Ana", "pfx", True))
+        usage = row.usages.get()
+        self.assertEqual((usage.hostname, usage.ip_address, usage.port, usage.application),
+                         ("VM-APP01", "10.0.0.5", 443, "Intranet"))
+        self.assertEqual(usage.where, "VM-APP01 (10.0.0.5:443) · Intranet")
         self.assertContains(r, "continha a chave privada")
 
     def test_nothing_sensitive_is_stored(self):
@@ -171,10 +176,11 @@ class InventoryViews(TestCase):
         self.upload(("a.crt", der(a)))
         row = InventoryCertificate.objects.get()
         self.client.post(f"/inventory/{row.pk}/", {"name": "Site principal", "notes": "renovar com a DigiCert"})
-        r = self.upload(("again.crt", der(a)), server="VM2")
+        r = self.upload(("again.crt", der(a)), hostname="VM2")
         self.assertEqual((r.context["n_added"], r.context["n_updated"]), (0, 1))
         row.refresh_from_db()
-        self.assertEqual((row.name, row.notes, row.server, row.source_filename), ("Site principal", "renovar com a DigiCert", "VM2", "again.crt"))
+        self.assertEqual((row.name, row.notes, row.source_filename), ("Site principal", "renovar com a DigiCert", "again.crt"))
+        self.assertEqual([u.hostname for u in row.usages.all()], ["VM2"])
         self.assertEqual(InventoryCertificate.objects.count(), 1)
 
     def test_errors_reported_per_file(self):
@@ -194,7 +200,7 @@ class InventoryViews(TestCase):
         soon, _ = build("soon.pt", days=10)
         ok, _ = build("ok.pt", days=300)
         old, _ = build("old.pt", days=-5)
-        self.upload(("a.crt", der(soon)), ("b.crt", der(ok)), ("c.crt", der(old)), server="VM1")
+        self.upload(("a.crt", der(soon)), ("b.crt", der(ok)), ("c.crt", der(old)), hostname="VM1")
         r = self.client.get("/inventory/")
         self.assertEqual(r.context["stats"], {"total": 3, "ok": 1, "expiring": 1, "expired": 1})
         self.assertEqual([c.name for c in self.client.get("/inventory/?status=expired").context["certs"]], ["old.pt"])
@@ -225,9 +231,9 @@ class InventoryViews(TestCase):
         row = InventoryCertificate.objects.get()
         r = self.client.get(f"/inventory/{row.pk}/")
         self.assertContains(r, "www.a.pt")
-        self.client.post(f"/inventory/{row.pk}/", {"name": "n", "server": "S", "owner": "O", "purpose": "P", "notes": "x"})
+        self.client.post(f"/inventory/{row.pk}/", {"name": "n", "owner": "O", "notes": "x"})
         row.refresh_from_db()
-        self.assertEqual((row.server, row.owner, row.purpose), ("S", "O", "P"))
+        self.assertEqual((row.name, row.owner, row.notes), ("n", "O", "x"))
         self.client.post(f"/inventory/{row.pk}/delete/")
         self.assertFalse(InventoryCertificate.objects.exists())
 
@@ -257,6 +263,109 @@ class InventoryViews(TestCase):
         a, _ = build("a.pt")
         self.upload(("a.crt", der(a)))
         self.assertTrue(AuditEvent.objects.filter(action="inventory_uploaded").exists())
+
+
+class UsageTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user("boss", password="x")
+        self.admin.groups.add(Group.objects.get(name="Administradores"))
+        self.client.force_login(self.admin)
+        cert, _ = build("a.pt")
+        self.client.post("/inventory/upload/", {"files": SimpleUploadedFile("a.crt", der(cert))})
+        self.cert = InventoryCertificate.objects.get()
+
+    def add(self, **data):
+        return self.client.post(f"/inventory/{self.cert.pk}/usages/add/", data)
+
+    def test_several_usages_per_certificate(self):
+        self.add(hostname="VM-WEB01", ip_address="10.0.0.10", port="443", application="Site público", environment="prod")
+        self.add(hostname="VM-WEB02", ip_address="10.0.0.11", application="Site público")
+        self.add(ip_address="2001:db8::1", application="API")
+        self.assertEqual(self.cert.usages.count(), 3)
+        summary = self.cert.usage_summary
+        self.assertIn("2001:db8::1 · API", summary)  # sem servidor: mostra o IP
+        self.assertTrue(summary.endswith("+1"))
+
+    def test_requires_server_ip_or_application(self):
+        r = self.add(notes="só notas", environment="dev")
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(self.cert.usages.exists())
+        self.assertContains(r, "pelo menos o servidor, o IP ou a aplicação")
+
+    def test_ip_and_port_validation(self):
+        self.add(hostname="x", ip_address="999.1.1.1")
+        self.add(hostname="x", port="70000")
+        self.add(hostname="x", port="0")
+        self.assertFalse(self.cert.usages.exists())
+
+    def test_edit_and_delete(self):
+        self.add(hostname="VM1", ip_address="10.0.0.1")
+        u = self.cert.usages.get()
+        r = self.client.post(f"/inventory/usages/{u.pk}/", {"hostname": "VM9", "ip_address": "10.0.0.9", "port": "8443",
+                                                         "application": "ERP", "environment": "staging"})
+        self.assertRedirects(r, f"/inventory/{self.cert.pk}/")
+        u.refresh_from_db()
+        self.assertEqual((u.hostname, u.port, u.application), ("VM9", 8443, "ERP"))
+        self.client.post(f"/inventory/usages/{u.pk}/delete/")
+        self.assertFalse(self.cert.usages.exists())
+
+    def test_deleting_certificate_removes_usages(self):
+        self.add(hostname="VM1")
+        self.client.post(f"/inventory/{self.cert.pk}/delete/")
+        self.assertEqual(CertificateUsage.objects.count(), 0)
+
+    def test_viewer_cannot_change_usages(self):
+        self.add(hostname="VM1")
+        u = self.cert.usages.get()
+        aud = User.objects.create_user("aud", password="x")
+        aud.groups.add(Group.objects.get(name="Auditores"))
+        self.client.force_login(aud)
+        self.assertEqual(self.client.post(f"/inventory/{self.cert.pk}/usages/add/", {"hostname": "evil"}).status_code, 403)
+        self.assertEqual(self.client.post(f"/inventory/usages/{u.pk}/delete/").status_code, 403)
+        self.assertEqual(self.client.get(f"/inventory/usages/{u.pk}/").status_code, 403)
+        self.assertEqual(self.cert.usages.count(), 1)
+        self.assertNotContains(self.client.get(f"/inventory/{self.cert.pk}/"), "Adicionar utilização")
+
+    def test_search_and_filter_by_ip_and_application(self):
+        self.add(hostname="VM-WEB01", ip_address="10.20.30.40", application="Intranet")
+        other, _ = build("b.pt")
+        self.client.post("/inventory/upload/", {"files": SimpleUploadedFile("b.crt", der(other)), "hostname": "VM-DB",
+                                               "ip_address": "10.99.0.1", "application": "ERP"})
+        names = lambda qs: sorted(c.name for c in qs)  # noqa: E731
+        self.assertEqual(names(self.client.get("/inventory/?q=10.20.30").context["certs"]), ["a.pt"])
+        self.assertEqual(names(self.client.get("/inventory/?q=erp").context["certs"]), ["b.pt"])
+        self.assertEqual(names(self.client.get("/inventory/?app=Intranet").context["certs"]), ["a.pt"])
+        self.assertEqual(names(self.client.get("/inventory/?server=vm-db").context["certs"]), ["b.pt"])
+        r = self.client.get("/inventory/")
+        self.assertEqual(r.context["apps"], ["ERP", "Intranet"])
+        self.assertContains(r, "VM-WEB01 (10.20.30.40) · Intranet")
+
+    def test_same_certificate_on_two_servers_not_duplicated(self):
+        cert, _ = build("shared.pt")
+        blob = der(cert)
+        for host in ("A", "B", "A"):
+            self.client.post("/inventory/upload/", {"files": SimpleUploadedFile("s.crt", blob), "hostname": host})
+        shared = InventoryCertificate.objects.get(name="shared.pt")
+        self.assertEqual(sorted(u.hostname for u in shared.usages.all()), ["A", "B"])
+
+    def test_csv_lists_servers_ips_and_apps(self):
+        self.add(hostname="VM1", ip_address="10.0.0.1", port="443", application="Intranet")
+        self.add(hostname="VM2", ip_address="10.0.0.2", application="Intranet")
+        text = self.client.get("/inventory/export.csv").content.decode("utf-8-sig")
+        self.assertIn("VM1; VM2", text)
+        self.assertIn("10.0.0.1:443; 10.0.0.2", text)
+        self.assertEqual(text.count("Intranet"), 1)  # sem repetir
+
+    def test_audit_trail(self):
+        from portal.models import AuditEvent
+        self.add(hostname="VM1")
+        self.assertTrue(AuditEvent.objects.filter(action="inventory_usage_added").exists())
+
+    def test_upload_rejects_invalid_ip(self):
+        cert, _ = build("c.pt")
+        r = self.client.post("/inventory/upload/", {"files": SimpleUploadedFile("c.crt", der(cert)), "ip_address": "nope"})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(InventoryCertificate.objects.filter(name="c.pt").exists())
 
 
 class PermissionUpgradeTests(TestCase):

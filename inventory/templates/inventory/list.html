@@ -16,7 +16,7 @@
 </dl>
 
 <form method="get" class="mb-5 mt-8 flex flex-col gap-3 lg:flex-row">
-  <input type="search" name="q" value="{{ filters.q }}" placeholder="Nome, domínio, emissor, servidor…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 lg:max-w-sm">
+  <input type="search" name="q" value="{{ filters.q }}" placeholder="Nome, domínio, IP, servidor, aplicação…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 lg:min-w-[14rem] lg:flex-1">
   <select name="type" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
     <option value="">Todos os tipos</option>
     {% for value, label in types %}<option value="{{ value }}" {% if filters.type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
@@ -31,12 +31,16 @@
     <option value="">Todos os servidores</option>
     {% for s in servers %}<option value="{{ s }}" {% if filters.server == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
   </select>
+  <select name="app" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+    <option value="">Todas as aplicações</option>
+    {% for a in apps %}<option value="{{ a }}" {% if filters.app == a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+  </select>
   <button class="btn-secondary" type="submit">Filtrar</button>
 </form>
 
 <div class="card overflow-hidden"><div class="overflow-x-auto">
 <table class="min-w-full divide-y divide-slate-200">
-  <thead class="bg-slate-50"><tr><th class="th">Certificado</th><th class="th">Tipo</th><th class="th">Emitido por</th><th class="th">Servidor</th><th class="th">Expira</th><th class="th">Estado</th></tr></thead>
+  <thead class="bg-slate-50"><tr><th class="th">Certificado</th><th class="th">Tipo</th><th class="th">Emitido por</th><th class="th">Onde é usado</th><th class="th">Expira</th><th class="th">Estado</th></tr></thead>
   <tbody class="divide-y divide-slate-100">
   {% for c in certs %}
     <tr class="hover:bg-slate-50">
@@ -45,7 +49,7 @@
         {% if c.san_list %}<div class="max-w-xs truncate text-xs text-slate-500" title="{{ c.san_list|join:', ' }}">{{ c.san_list|join:", " }}</div>{% endif %}</td>
       <td class="td whitespace-nowrap text-xs">{{ c.get_cert_type_display }}</td>
       <td class="td max-w-xs truncate text-xs" title="{{ c.issuer }}">{{ c.issuer }}</td>
-      <td class="td">{{ c.server|default:"—" }}</td>
+      <td class="td max-w-xs text-xs">{% for u in c.usages.all|slice:":2" %}<div class="truncate" title="{{ u.where }}">{{ u.where }}</div>{% empty %}<span class="text-slate-400">—</span>{% endfor %}{% if c.usages.all|length > 2 %}<div class="text-slate-400">+{{ c.usages.all|length|add:"-2" }} mais</div>{% endif %}</td>
       <td class="td whitespace-nowrap">{{ c.not_after|date:"d/m/Y" }}</td>
       <td class="td">{% include "_inv_badge.html" %}</td>
     </tr>

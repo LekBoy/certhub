@@ -11,7 +11,7 @@
 {% endif %}
 
 <div class="grid gap-6 lg:grid-cols-3">
-  <form method="post" enctype="multipart/form-data" class="flex flex-col gap-6 lg:col-span-2">
+  <form method="post" enctype="multipart/form-data" autocomplete="off" class="flex flex-col gap-6 lg:col-span-2">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -19,6 +19,14 @@
       <h2 class="font-semibold text-slate-900">Identificação</h2>
       {% include "_field.html" with field=form.name %}
       {% include "_field.html" with field=form.certificate_file %}
+      <div class="rounded-lg border border-slate-200 p-4">
+        <p class="text-sm font-medium text-slate-700">Tem um .pfx?</p>
+        <p class="mb-4 mt-1 text-xs text-slate-500">Os dados do certificado são lidos e registados. O ficheiro e a palavra-passe são usados só em memória: <strong>não são guardados</strong>, e a chave privada nunca fica no CertHub.</p>
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "_field.html" with field=form.pfx_file %}
+          {% include "_field.html" with field=form.pfx_password %}
+        </div>
+      </div>
       {% include "_field.html" with field=form.is_active %}
     </section>
 
@@ -70,7 +78,12 @@
       <dl class="mt-3 space-y-2 text-sm">
         <div><dt class="text-slate-500">Titular</dt><dd class="break-all">{{ cert.subject }}</dd></div>
         <div><dt class="text-slate-500">Thumbprint</dt><dd class="break-all font-mono text-xs">{{ cert.thumbprint }}</dd></div>
+        {% if cert.issuer %}<div><dt class="text-slate-500">Emitido por</dt><dd class="break-all">{{ cert.issuer }}</dd></div>{% endif %}
+        {% if cert.serial_number %}<div><dt class="text-slate-500">Número de série</dt><dd class="break-all font-mono text-xs">{{ cert.serial_number }}</dd></div>{% endif %}
+        {% if cert.key_info %}<div class="flex justify-between"><dt class="text-slate-500">Chave</dt><dd>{{ cert.key_info }}</dd></div>{% endif %}
+        <div class="flex justify-between"><dt class="text-slate-500">Válido de</dt><dd>{{ cert.not_before|date:"d/m/Y" }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-500">Válido até</dt><dd>{{ cert.not_after|date:"d/m/Y" }}</dd></div>
+        {% if cert.source %}<div class="flex justify-between"><dt class="text-slate-500">Origem</dt><dd>{% if cert.source == "pfx" %}.pfx{% else %}.cer{% endif %}</dd></div>{% endif %}
       </dl>
       <div class="mt-4 border-t border-slate-100 pt-4">
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Assinaturas neste período</p>

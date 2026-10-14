@@ -69,6 +69,11 @@ class SigningCertificate(models.Model):
     name = models.CharField("nome", max_length=255, unique=True)
     thumbprint = models.CharField("thumbprint (SHA-1)", max_length=40, unique=True, editable=False)
     subject = models.CharField(max_length=512, editable=False)
+    issuer = models.CharField("emitido por", max_length=512, blank=True, editable=False)
+    serial_number = models.CharField("número de série", max_length=80, blank=True, editable=False)
+    key_info = models.CharField("chave", max_length=64, blank=True, editable=False)
+    source = models.CharField("registado a partir de", max_length=8, blank=True, editable=False)  # cer | pfx
+    had_private_key = models.BooleanField("o ficheiro enviado continha a chave privada", default=False, editable=False)
     not_before = models.DateTimeField(editable=False)
     not_after = models.DateTimeField("expira em", editable=False)
     is_active = models.BooleanField("ativo", default=True)

@@ -30,7 +30,52 @@ def make_cert(eku=ExtendedKeyUsageOID.CODE_SIGNING, days=365) -> bytes:
     return builder.sign(key, hashes.SHA256()).public_bytes(serialization.Encoding.PEM)
 
 
+def make_pfx(password=b"s3cret", eku=ExtendedKeyUsageOID.CODE_SIGNING, with_key=True) -> bytes:
+    from cryptography.hazmat.primitives.serialization import BestAvailableEncryption, NoEncryption, pkcs12
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Empresa PAD"),
+                      x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Empresa")])
+    now = datetime.datetime.now(datetime.timezone.utc)
+    builder = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
+               .serial_number(x509.random_serial_number()).not_valid_before(now)
+               .not_valid_after(now + datetime.timedelta(days=200)))
+    if eku:
+        builder = builder.add_extension(x509.ExtendedKeyUsage([eku]), critical=False)
+    cert = builder.sign(key, hashes.SHA256())
+    enc = BestAvailableEncryption(password) if password else NoEncryption()
+    return pkcs12.serialize_key_and_certificates(b"x", key if with_key else None, cert, None, enc)
+
+
 class CertInfoTests(TestCase):
+    def test_pfx_reads_info_and_key_presence(self):
+        from .certinfo import parse_pkcs12
+        info = parse_pkcs12(make_pfx(), "s3cret")
+        self.assertEqual(len(info["thumbprint"]), 40)
+        self.assertIn("Empresa PAD", info["subject"])
+        self.assertEqual(info["key_info"], "RSA 2048 bits")
+        self.assertTrue(info["had_private_key"])
+        self.assertEqual(info["source"], "pfx")
+
+    def test_pfx_without_private_key(self):
+        from .certinfo import parse_pkcs12
+        self.assertFalse(parse_pkcs12(make_pfx(with_key=False, password=None), None)["had_private_key"])
+
+    def test_pfx_wrong_password(self):
+        from .certinfo import parse_pkcs12
+        with self.assertRaises(CertificateError):
+            parse_pkcs12(make_pfx(), "wrong")
+
+    def test_pfx_requires_code_signing(self):
+        from .certinfo import parse_pkcs12
+        with self.assertRaises(CertificateError):
+            parse_pkcs12(make_pfx(eku=ExtendedKeyUsageOID.SERVER_AUTH), "s3cret")
+
+    def test_pfx_garbage(self):
+        from .certinfo import parse_pkcs12
+        with self.assertRaises(CertificateError):
+            parse_pkcs12(b"not a pfx", "x")
+
     def test_accepts_code_signing(self):
         info = parse_public_certificate(make_cert())
         self.assertEqual(len(info["thumbprint"]), 40)

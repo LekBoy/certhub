@@ -3,7 +3,7 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.models import Group, User
 
-from signing.certinfo import CertificateError, parse_public_certificate
+from signing.certinfo import CertificateError, parse_pkcs12, parse_public_certificate
 from signing.models import SigningCertificate, SiteSettings
 
 from .permissions import PERMISSION_GROUPS, permission_objects
@@ -127,6 +127,10 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
     certificate_file = forms.FileField(
         label="Certificado público (.cer/.crt/.pem)", required=False,
         help_text="Só a parte pública. É rejeitado se não tiver a utilização Code Signing (1.3.6.1.5.5.7.3.3).")
+    pfx_file = forms.FileField(
+        label="Ficheiro .pfx / .p12", required=False)
+    pfx_password = forms.CharField(label="Palavra-passe do .pfx", required=False,
+                                   widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "off"}))
     allowed_groups = forms.ModelMultipleChoiceField(queryset=Group.objects.all(), required=False,
                                                     widget=forms.CheckboxSelectMultiple, label="Grupos com acesso")
 
@@ -158,18 +162,25 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
 
     def clean(self):
         data = super().clean()
-        upload = data.get("certificate_file")
-        if not self.instance.pk and not upload:
-            self.add_error("certificate_file", "Envie o certificado público.")
-        if upload:
-            try:
-                self.parsed = parse_public_certificate(upload.read())
-            except CertificateError as exc:
-                self.add_error("certificate_file", str(exc))
+        upload, pfx = data.get("certificate_file"), data.get("pfx_file")
+        if upload and pfx:
+            self.add_error("pfx_file", "Envie só um: o .cer público ou o .pfx.")
+        elif not self.instance.pk and not upload and not pfx:
+            self.add_error("certificate_file", "Envie o certificado público (.cer) ou o .pfx.")
+        parsed, field = None, None
+        try:
+            if upload:
+                parsed, field = parse_public_certificate(upload.read()), "certificate_file"
+            elif pfx:
+                parsed, field = parse_pkcs12(pfx.read(), data.get("pfx_password")), "pfx_file"
+        except CertificateError as exc:
+            self.add_error("pfx_password" if pfx and "palavra-passe" in str(exc) else field, str(exc))
+        if parsed:
+            taken = SigningCertificate.objects.filter(thumbprint=parsed["thumbprint"]).exclude(pk=self.instance.pk)
+            if taken.exists():
+                self.add_error(field, "Este certificado já está registado.")
             else:
-                taken = SigningCertificate.objects.filter(thumbprint=self.parsed["thumbprint"]).exclude(pk=self.instance.pk)
-                if taken.exists():
-                    self.add_error("certificate_file", "Este certificado já está registado.")
+                self.parsed = parsed
         method = data.get("method")
         M = SigningCertificate.Method
         if method == M.KEYLOCKER_ALIAS:
@@ -183,8 +194,10 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
     def save(self, commit=True):
         cert = super().save(commit=False)
         if self.parsed:
-            for field, value in self.parsed.items():
-                setattr(cert, field, value)
+            for field in ("thumbprint", "subject", "issuer", "serial_number", "key_info", "not_before", "not_after",
+                          "source"):
+                setattr(cert, field, self.parsed[field])
+            cert.had_private_key = self.parsed["had_private_key"]
         if commit:
             cert.save()
             self.save_m2m()

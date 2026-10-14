@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from signing.models import SigningCertificate, SigningRequest, SigningToken, SiteSettings
-from signing.tests import make_cert
+from signing.tests import make_cert, make_pfx
 
 from .models import AuditEvent, UserProfile
 
@@ -325,3 +325,75 @@ class CertificateManagementTests(ManageBase):
         r = self.client.get("/")
         self.assertContains(r, "Limite anual atingido")
         self.assertContains(r, "Renovação em")
+
+
+class PfxUploadTests(ManageBase):
+    def post_pfx(self, pfx, password="s3cret", **extra):
+        data = {"name": "Do PFX", "is_active": "on", "method": "store", "store_name": "My", "machine_store": "on",
+                "verify": "default", "pfx_file": SimpleUploadedFile("c.pfx", pfx), "pfx_password": password}
+        data.update(extra)
+        return self.client.post("/certificates/new/", data, follow=True)
+
+    def test_register_from_pfx_stores_only_public_data(self):
+        r = self.post_pfx(make_pfx())
+        cert = SigningCertificate.objects.get()
+        self.assertEqual((cert.source, cert.had_private_key, cert.key_info), ("pfx", True, "RSA 2048 bits"))
+        self.assertIn("Empresa PAD", cert.subject)
+        self.assertEqual(len(cert.thumbprint), 40)
+        text = " ".join(str(m) for m in r.context["messages"])
+        self.assertIn("não foram guardados", text)
+        self.assertIn("chave privada", text)
+
+    def test_pfx_and_password_never_persisted(self):
+        import os
+        from django.conf import settings
+        self.post_pfx(make_pfx(), password="never-store-me")
+        for c in SigningCertificate.objects.all():
+            for value in vars(c).values():
+                self.assertNotIn("never-store-me", str(value))
+        self.assertNotIn("never-store-me", " ".join(AuditEventText()))
+        self.assertFalse(any(f.endswith((".pfx", ".p12")) for _, _, fs in os.walk(settings.BASE_DIR / "static") for f in fs))
+
+    def test_wrong_pfx_password_shows_error(self):
+        r = self.client.post("/certificates/new/", {
+            "name": "x", "is_active": "on", "method": "store", "verify": "default",
+            "pfx_file": SimpleUploadedFile("c.pfx", make_pfx()), "pfx_password": "bad"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("pfx_password", r.context["form"].errors)
+        self.assertNotContains(r, 'value="bad"')
+        self.assertFalse(SigningCertificate.objects.exists())
+
+    def test_pfx_without_code_signing_rejected(self):
+        from cryptography.x509.oid import ExtendedKeyUsageOID
+        r = self.post_pfx(make_pfx(eku=ExtendedKeyUsageOID.SERVER_AUTH))
+        self.assertFalse(SigningCertificate.objects.exists())
+
+    def test_cannot_send_both_files(self):
+        r = self.client.post("/certificates/new/", {
+            "name": "x", "is_active": "on", "method": "store", "verify": "default",
+            "certificate_file": SimpleUploadedFile("a.cer", make_cert()),
+            "pfx_file": SimpleUploadedFile("c.pfx", make_pfx()), "pfx_password": "s3cret"})
+        self.assertIn("pfx_file", r.context["form"].errors)
+
+    def test_duplicate_between_cer_and_pfx(self):
+        from cryptography import x509
+        from cryptography.hazmat.primitives.serialization import Encoding
+        from cryptography.hazmat.primitives.serialization.pkcs12 import load_pkcs12
+        pfx = make_pfx()
+        cert_pem = load_pkcs12(pfx, b"s3cret").cert.certificate.public_bytes(Encoding.PEM)
+        self.client.post("/certificates/new/", {
+            "name": "A", "is_active": "on", "method": "store", "verify": "default",
+            "certificate_file": SimpleUploadedFile("a.cer", cert_pem)})
+        r = self.post_pfx(pfx, name="B")
+        self.assertEqual(SigningCertificate.objects.count(), 1)
+
+    def test_detail_page_shows_extracted_info(self):
+        self.post_pfx(make_pfx())
+        cert = SigningCertificate.objects.get()
+        r = self.client.get(f"/certificates/{cert.pk}/")
+        self.assertContains(r, "RSA 2048 bits")
+        self.assertContains(r, cert.serial_number)
+
+
+def AuditEventText():
+    return [f"{e.target} {e.detail}" for e in AuditEvent.objects.all()]

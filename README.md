@@ -28,7 +28,7 @@ Tudo se gere **dentro do CertHub** (menu «Administração»), segundo as permis
 
 - **Utilizadores** – criar (palavra-passe temporária, trocada no primeiro acesso), editar, ativar/desativar, repor palavra-passe, apagar (se sem histórico).
 - **Grupos** – criar/editar/apagar com uma matriz de permissões: assinar, ver histórico de todos, ver auditoria, gerir certificados, utilizadores, grupos, tokens e definições. Grupos base: *Assinantes*, *Auditores*, *Administradores* (editáveis).
-- **Certificados** – registar o `.cer` público, escolher o **método de assinatura** (store do Windows, DigiCert KeyLocker, comando personalizado), grupos com acesso, limite anual, datas de subscrição/renovação, notas e botão «Testar assinatura».
+- **Certificados** – registar o `.cer` público **ou ler um `.pfx`** (com a palavra-passe: lê o titular, emissor, série, chave e validade e regista só os dados públicos; o ficheiro e a palavra-passe não são guardados), escolher o **método de assinatura** (store do Windows, DigiCert KeyLocker, comando personalizado), grupos com acesso, limite anual, datas de subscrição/renovação, notas e botão «Testar assinatura».
 - **Definições** – SignTool, timestamp, verificação, limites de upload, extensões, validade dos tokens, bloqueio ao atingir o limite.
 - **Auditoria** – quem fez o quê.
 - Proteções: não é possível ficar sem nenhum utilizador ativo capaz de gerir utilizadores; ninguém dá permissões que não tem; só um superadministrador altera outro.

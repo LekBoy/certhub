@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from django.contrib.auth.models import Group, Permission, User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.utils import timezone
 
 from . import service, signer
@@ -95,9 +95,11 @@ class CertInfoTests(TestCase):
 
 
 
-@override_settings(SIGN_VERIFY=False)
 class SignApiTests(TestCase):
     def setUp(self):
+        site = SiteSettings.load()
+        site.verify_after_sign = False
+        site.save()
         self.user = User.objects.create_user("dev", password="x")
         self.user.user_permissions.add(Permission.objects.get(codename="can_sign"))
         self.token = SigningToken(user=self.user, name="ci")
@@ -175,7 +177,6 @@ class SignApiTests(TestCase):
         self.assertEqual(self.client.get("/sign/").status_code, 200)
 
 
-@override_settings(SIGN_VERIFY=False)
 class SigningMethodTests(TestCase):
     def make(self, **kw):
         return SigningCertificate.objects.create(

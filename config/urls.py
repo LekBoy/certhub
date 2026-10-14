@@ -27,5 +27,6 @@ admin.site.has_permission = lambda request: request.user.is_active and request.u
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('signing.urls')),
+    path('inventory/', include('inventory.urls')),
     path('', include('portal.urls')),
 ]

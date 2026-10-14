@@ -40,4 +40,23 @@
     </ul>
   </section>
 </div>
+{% if inv %}
+<section class="card mt-6">
+  <div class="card-header"><h2 class="font-semibold text-slate-900">Inventário de certificados</h2><a href="{% url 'inventory:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-500">Ver inventário</a></div>
+  <div class="grid gap-6 p-5 lg:grid-cols-3">
+    <dl class="grid grid-cols-3 gap-4 lg:grid-cols-1">
+      <div><dt class="text-sm text-slate-500">Total</dt><dd class="text-2xl font-semibold text-slate-900">{{ inv.total }}</dd></div>
+      <div><dt class="text-sm text-slate-500">A expirar (≤ 30 dias)</dt><dd class="text-2xl font-semibold {% if inv.expiring %}text-amber-600{% else %}text-slate-900{% endif %}">{{ inv.expiring }}</dd></div>
+      <div><dt class="text-sm text-slate-500">Expirados</dt><dd class="text-2xl font-semibold {% if inv.expired %}text-red-600{% else %}text-slate-900{% endif %}">{{ inv.expired }}</dd></div>
+    </dl>
+    <div class="lg:col-span-2">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Próximos a expirar</p>
+      <ul class="mt-2 divide-y divide-slate-100">
+        {% for c in inv.next %}<li class="flex items-center justify-between gap-3 py-2.5"><a href="{% url 'inventory:detail' c.pk %}" class="min-w-0 truncate text-sm font-medium text-slate-900 hover:text-brand-600">{{ c.name }}{% if c.server %} <span class="font-normal text-slate-500">· {{ c.server }}</span>{% endif %}</a>{% include "_inv_badge.html" %}</li>
+        {% empty %}<li class="py-6 text-center text-sm text-slate-500">Sem certificados no inventário.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

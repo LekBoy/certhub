@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ cert.name }}{% endblock %}
+{% block heading %}{{ cert.name }}{% endblock %}
+{% block actions %}<a href="{% url 'inventory:list' %}" class="btn-secondary">Voltar</a>{% endblock %}
+{% block content %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="space-y-6 lg:col-span-2">
+    <section class="card p-6">
+      <div class="flex flex-wrap items-center gap-2">
+        {% with c=cert %}{% include "_inv_badge.html" %}{% endwith %}
+        <span class="badge-slate">{{ cert.get_cert_type_display }}</span>
+        {% if cert.is_wildcard %}<span class="badge-slate">wildcard</span>{% endif %}
+      </div>
+      <dl class="mt-5 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+        <div class="sm:col-span-2"><dt class="text-slate-500">Titular</dt><dd class="break-all text-slate-900">{{ cert.subject }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-slate-500">Emitido por</dt><dd class="break-all text-slate-900">{{ cert.issuer }}</dd></div>
+        <div><dt class="text-slate-500">Válido desde</dt><dd>{{ cert.not_before|date:"d/m/Y H:i" }}</dd></div>
+        <div><dt class="text-slate-500">Expira em</dt><dd>{{ cert.not_after|date:"d/m/Y H:i" }}{% if cert.status != "expired" %} <span class="text-slate-500">({{ cert.days_left }} dias)</span>{% endif %}</dd></div>
+        <div><dt class="text-slate-500">Chave</dt><dd>{{ cert.key_info|default:"—" }}</dd></div>
+        <div><dt class="text-slate-500">Algoritmo de assinatura</dt><dd>{{ cert.signature_algorithm|default:"—" }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-slate-500">Número de série</dt><dd class="break-all font-mono text-xs">{{ cert.serial_number }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-slate-500">SHA-1</dt><dd class="break-all font-mono text-xs">{{ cert.sha1 }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-slate-500">SHA-256</dt><dd class="break-all font-mono text-xs">{{ cert.sha256 }}</dd></div>
+      </dl>
+    </section>
+    {% if cert.san_list or cert.eku_list or cert.ku_list %}
+    <section class="card p-6">
+      <h2 class="font-semibold text-slate-900">Utilização</h2>
+      {% if cert.san_list %}<p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Nomes (SAN)</p>
+      <div class="mt-2 flex flex-wrap gap-1.5">{% for n in cert.san_list %}<span class="badge-slate">{{ n }}</span>{% endfor %}</div>{% endif %}
+      {% if cert.eku_list %}<p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Utilizações avançadas</p>
+      <div class="mt-2 flex flex-wrap gap-1.5">{% for n in cert.eku_list %}<span class="badge-slate">{{ n }}</span>{% endfor %}</div>{% endif %}
+      {% if cert.ku_list %}<p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Utilizações da chave</p>
+      <div class="mt-2 flex flex-wrap gap-1.5">{% for n in cert.ku_list %}<span class="badge-slate">{{ n }}</span>{% endfor %}</div>{% endif %}
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="space-y-6">
+    <form method="post" class="card flex flex-col gap-4 p-5">{% csrf_token %}
+      <h2 class="font-semibold text-slate-900">Dados do inventário</h2>
+      {% for field in form %}{% include "_field.html" %}{% endfor %}
+      {% if can_manage %}<button class="btn-primary">Guardar</button>{% endif %}
+    </form>
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Origem</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex justify-between gap-3"><dt class="text-slate-500">Ficheiro</dt><dd class="truncate" title="{{ cert.source_filename }}">{{ cert.source_filename|default:"—" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Formato</dt><dd class="uppercase">{{ cert.source_format|default:"—" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Carregado por</dt><dd>{{ cert.uploaded_by.username|default:"—" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Atualizado</dt><dd>{{ cert.updated_at|date:"d/m/Y H:i" }}</dd></div>
+      </dl>
+      <p class="mt-3 text-xs text-slate-500">O ficheiro original não é guardado.{% if cert.had_private_key %} <span class="text-amber-700">Continha a chave privada: proteja ou apague as cópias.</span>{% endif %}</p>
+    </section>
+    {% if can_manage %}
+    <section class="card p-5">
+      <form method="post" action="{% url 'inventory:delete' cert.pk %}" data-confirm="Remover «{{ cert.name }}» do inventário? Só apaga o registo; o certificado em si não é afetado.">{% csrf_token %}
+        <button class="btn-danger w-full">Remover do inventário</button></form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

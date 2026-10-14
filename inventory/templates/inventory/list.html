@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Inventário{% endblock %}
+{% block heading %}Inventário de certificados{% endblock %}
+{% block actions %}
+  <div class="flex gap-2">
+    <a href="{% url 'inventory:export' %}?{{ keep }}" class="btn-secondary">Exportar CSV</a>
+    {% if perms.inventory.manage_inventory %}<a href="{% url 'inventory:upload' %}" class="btn-primary">Carregar certificados</a>{% endif %}
+  </div>
+{% endblock %}
+{% block content %}
+<dl class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+  <a href="{% url 'inventory:list' %}" class="card p-5"><dt class="text-sm text-slate-500">Total</dt><dd class="mt-2 text-3xl font-semibold text-slate-900">{{ stats.total }}</dd></a>
+  <a href="?status=ok" class="card p-5"><dt class="text-sm text-slate-500">Válidos</dt><dd class="mt-2 text-3xl font-semibold text-emerald-600">{{ stats.ok }}</dd></a>
+  <a href="?status=expiring" class="card p-5"><dt class="text-sm text-slate-500">A expirar (≤ 30 dias)</dt><dd class="mt-2 text-3xl font-semibold {% if stats.expiring %}text-amber-600{% else %}text-slate-900{% endif %}">{{ stats.expiring }}</dd></a>
+  <a href="?status=expired" class="card p-5"><dt class="text-sm text-slate-500">Expirados</dt><dd class="mt-2 text-3xl font-semibold {% if stats.expired %}text-red-600{% else %}text-slate-900{% endif %}">{{ stats.expired }}</dd></a>
+</dl>
+
+<form method="get" class="mb-5 mt-8 flex flex-col gap-3 lg:flex-row">
+  <input type="search" name="q" value="{{ filters.q }}" placeholder="Nome, domínio, emissor, servidor…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 lg:max-w-sm">
+  <select name="type" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+    <option value="">Todos os tipos</option>
+    {% for value, label in types %}<option value="{{ value }}" {% if filters.type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select name="status" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+    <option value="">Todos os estados</option>
+    <option value="ok" {% if filters.status == "ok" %}selected{% endif %}>Válidos</option>
+    <option value="expiring" {% if filters.status == "expiring" %}selected{% endif %}>A expirar</option>
+    <option value="expired" {% if filters.status == "expired" %}selected{% endif %}>Expirados</option>
+  </select>
+  <select name="server" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+    <option value="">Todos os servidores</option>
+    {% for s in servers %}<option value="{{ s }}" {% if filters.server == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+  </select>
+  <button class="btn-secondary" type="submit">Filtrar</button>
+</form>
+
+<div class="card overflow-hidden"><div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-slate-200">
+  <thead class="bg-slate-50"><tr><th class="th">Certificado</th><th class="th">Tipo</th><th class="th">Emitido por</th><th class="th">Servidor</th><th class="th">Expira</th><th class="th">Estado</th></tr></thead>
+  <tbody class="divide-y divide-slate-100">
+  {% for c in certs %}
+    <tr class="hover:bg-slate-50">
+      <td class="td"><a href="{% url 'inventory:detail' c.pk %}" class="font-medium text-slate-900 hover:text-brand-600">{{ c.name }}</a>
+        {% if c.is_wildcard %}<span class="badge-slate ml-1">wildcard</span>{% endif %}
+        {% if c.san_list %}<div class="max-w-xs truncate text-xs text-slate-500" title="{{ c.san_list|join:', ' }}">{{ c.san_list|join:", " }}</div>{% endif %}</td>
+      <td class="td whitespace-nowrap text-xs">{{ c.get_cert_type_display }}</td>
+      <td class="td max-w-xs truncate text-xs" title="{{ c.issuer }}">{{ c.issuer }}</td>
+      <td class="td">{{ c.server|default:"—" }}</td>
+      <td class="td whitespace-nowrap">{{ c.not_after|date:"d/m/Y" }}</td>
+      <td class="td">{% include "_inv_badge.html" %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-slate-500">
+      {% if stats.total %}Nenhum certificado corresponde aos filtros.{% else %}O inventário está vazio.{% if perms.inventory.manage_inventory %} <a href="{% url 'inventory:upload' %}" class="font-medium text-brand-600">Carregue os primeiros certificados</a>.{% endif %}{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

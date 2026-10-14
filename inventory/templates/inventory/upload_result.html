@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Resultado do envio{% endblock %}
+{% block heading %}Resultado do envio{% endblock %}
+{% block actions %}<div class="flex gap-2"><a href="{% url 'inventory:upload' %}" class="btn-secondary">Carregar mais</a><a href="{% url 'inventory:list' %}" class="btn-primary">Ver inventário</a></div>{% endblock %}
+{% block content %}
+<dl class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+  <div class="card p-5"><dt class="text-sm text-slate-500">Adicionados</dt><dd class="mt-2 text-3xl font-semibold text-emerald-600">{{ n_added }}</dd></div>
+  <div class="card p-5"><dt class="text-sm text-slate-500">Atualizados</dt><dd class="mt-2 text-3xl font-semibold text-slate-900">{{ n_updated }}</dd></div>
+  <div class="card p-5"><dt class="text-sm text-slate-500">Ignorados</dt><dd class="mt-2 text-3xl font-semibold text-slate-900">{{ n_skipped }}</dd></div>
+  <div class="card p-5"><dt class="text-sm text-slate-500">Com erro</dt><dd class="mt-2 text-3xl font-semibold {% if n_error %}text-red-600{% else %}text-slate-900{% endif %}">{{ n_error }}</dd></div>
+</dl>
+<div class="card mt-8 overflow-hidden"><div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-slate-200">
+  <thead class="bg-slate-50"><tr><th class="th">Ficheiro</th><th class="th">Certificado</th><th class="th">Resultado</th><th class="th">Detalhe</th></tr></thead>
+  <tbody class="divide-y divide-slate-100">
+  {% for r in results %}
+    <tr>
+      <td class="td">{{ r.filename }}</td>
+      <td class="td font-medium text-slate-900">{% if r.cert %}<a href="{% url 'inventory:detail' r.cert.pk %}" class="hover:text-brand-600">{{ r.name }}</a>{% else %}{{ r.name|default:"—" }}{% endif %}</td>
+      <td class="td">{% if r.status == "added" %}<span class="badge-green">Adicionado</span>{% elif r.status == "updated" %}<span class="badge-slate">Atualizado</span>{% elif r.status == "skipped" %}<span class="badge-amber">Ignorado</span>{% else %}<span class="badge-red">Erro</span>{% endif %}</td>
+      <td class="td text-xs">{{ r.message }}{% if r.cert %}Expira {{ r.cert.not_after|date:"d/m/Y" }}{% endif %}{% if r.had_key %}<div class="mt-1 text-amber-700">O ficheiro continha a chave privada (não foi guardada): proteja ou apague as cópias.</div>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

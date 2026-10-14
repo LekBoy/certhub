@@ -1,0 +1,3 @@
+{% if c.status == "ok" %}<span class="badge-green">Válido</span>
+{% elif c.status == "expiring" %}<span class="badge-amber">Expira em {{ c.days_left }} d</span>
+{% else %}<span class="badge-red">Expirado</span>{% endif %}

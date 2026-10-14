@@ -35,8 +35,16 @@ def dashboard(request):
     }
     attention = sorted((c for c in certs if c.is_active and c.attention or c.status == "expired"),
                        key=lambda c: c.not_after)
+    inv = None
+    if request.user.has_perm("inventory.view_inventorycertificate"):
+        from inventory.models import ALERT_DAYS, InventoryCertificate
+
+        allc = InventoryCertificate.objects.all()
+        soon = allc.filter(not_after__gt=now, not_after__lte=now + timedelta(days=ALERT_DAYS))
+        inv = {"total": allc.count(), "expiring": soon.count(), "expired": allc.filter(not_after__lte=now).count(),
+               "next": allc.filter(not_after__gt=now).order_by("not_after")[:5]}
     return render(request, "portal/dashboard.html", {
-        "stats": stats, "attention": attention, "recent": reqs[:8], "total_certs": len(certs),
+        "stats": stats, "attention": attention, "recent": reqs[:8], "total_certs": len(certs), "inv": inv,
     })
 
 

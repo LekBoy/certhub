@@ -19,6 +19,15 @@ A private key **nunca sai do servidor de assinatura**.
 
 Cada pedido fica auditado (utilizador, ficheiro, SHA-256 antes/depois, certificado). Servir sempre atrás de HTTPS.
 
+## Inventário de certificados (só informação)
+
+Em *Inventário* carrega-se qualquer certificado (`.pfx/.p12`, `.crt/.cer/.der`, `.pem` com um ou vários, `.p7b`), vários de uma vez.
+O CertHub lê titular, emissor, validade, domínios (SAN), tipo (TLS, Code Signing, cliente, CA…), chave, fingerprints e se é wildcard,
+e guarda **só essa informação**: os ficheiros, as chaves privadas e as palavras-passe são lidos em memória e nunca guardados.
+Cada certificado pode ter servidor/local, responsável, utilização e notas. Há pesquisa, filtros (tipo, estado, servidor), exportação CSV,
+avisos de expiração (≤ 30 dias) no painel e o mesmo certificado carregado outra vez só atualiza o registo.
+Permissões próprias (*Ver o inventário* / *Gerir o inventário*) na matriz dos grupos.
+
 ## Interface e administração
 
 UI em Tailwind CSS, com a identidade da BCA: azul `#193D79` e vermelho `#CC1519` (do logótipo). As cores estão em `tailwind.config.js` (`brand` e `accent`) e o logótipo e o favicon em `static/img/`; para mudar a identidade basta alterar esses ficheiros e recompilar o CSS. O CSS compilado vai commitado em `static/css/app.css`; só é preciso Node para o alterar:

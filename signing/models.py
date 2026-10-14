@@ -25,6 +25,7 @@ class SiteSettings(models.Model):
                                           help_text="Separadas por vírgula, ex.: .dll, .exe, .msi")
     token_valid_days = models.PositiveIntegerField("validade dos tokens de API (dias)", default=90)
     block_at_limit = models.BooleanField("bloquear assinaturas ao atingir o limite anual", default=False)
+    default_groups_version = models.PositiveSmallIntegerField(default=0, editable=False)  # migração das permissões base
 
     class Meta:
         verbose_name = "definições"

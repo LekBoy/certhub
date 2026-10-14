@@ -5,42 +5,23 @@
 {% block content %}
 <div class="grid gap-6 lg:grid-cols-3">
   <div class="space-y-6 lg:col-span-2">
-    <section class="card p-6">
-      <div class="flex flex-wrap items-center gap-2">
-        {% with c=cert %}{% include "_inv_badge.html" %}{% endwith %}
-        <span class="badge-slate">{{ cert.get_cert_type_display }}</span>
-        {% if cert.is_wildcard %}<span class="badge-slate">wildcard</span>{% endif %}
-      </div>
-      <dl class="mt-5 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-        <div class="sm:col-span-2"><dt class="text-slate-500">Titular</dt><dd class="break-all text-slate-900">{{ cert.subject }}</dd></div>
-        <div class="sm:col-span-2"><dt class="text-slate-500">Emitido por</dt><dd class="break-all text-slate-900">{{ cert.issuer }}</dd></div>
-        <div><dt class="text-slate-500">Válido desde</dt><dd>{{ cert.not_before|date:"d/m/Y H:i" }}</dd></div>
-        <div><dt class="text-slate-500">Expira em</dt><dd>{{ cert.not_after|date:"d/m/Y H:i" }}{% if cert.status != "expired" %} <span class="text-slate-500">({{ cert.days_left }} dias)</span>{% endif %}</dd></div>
-        <div><dt class="text-slate-500">Chave</dt><dd>{{ cert.key_info|default:"—" }}</dd></div>
-        <div><dt class="text-slate-500">Algoritmo de assinatura</dt><dd>{{ cert.signature_algorithm|default:"—" }}</dd></div>
-        <div class="sm:col-span-2"><dt class="text-slate-500">Número de série</dt><dd class="break-all font-mono text-xs">{{ cert.serial_number }}</dd></div>
-        <div class="sm:col-span-2"><dt class="text-slate-500">SHA-1</dt><dd class="break-all font-mono text-xs">{{ cert.sha1 }}</dd></div>
-        <div class="sm:col-span-2"><dt class="text-slate-500">SHA-256</dt><dd class="break-all font-mono text-xs">{{ cert.sha256 }}</dd></div>
-      </dl>
-    </section>
     <section class="card">
       <div class="card-header"><h2 class="font-semibold text-slate-900">Onde é usado</h2><span class="text-sm text-slate-500">{{ usages|length }} {% if usages|length == 1 %}utilização{% else %}utilizações{% endif %}</span></div>
       <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200">
-        <thead class="bg-slate-50"><tr><th class="th">Servidor</th><th class="th">IP</th><th class="th">Porta</th><th class="th">Aplicação</th><th class="th">Ambiente</th><th class="th"></th></tr></thead>
+        <thead class="bg-slate-50"><tr><th class="th">Servidor</th><th class="th">IP</th><th class="th">Porta</th><th class="th">Aplicação</th><th class="th"></th></tr></thead>
         <tbody class="divide-y divide-slate-100">
         {% for u in usages %}
           <tr>
             <td class="td whitespace-nowrap font-medium text-slate-900">{{ u.hostname|default:"—" }}{% if u.notes %}<div class="text-xs font-normal text-slate-500">{{ u.notes }}</div>{% endif %}</td>
             <td class="td whitespace-nowrap font-mono text-xs">{{ u.ip_address|default:"—" }}</td>
             <td class="td">{{ u.port|default:"—" }}</td>
-            <td class="td">{{ u.application|default:"—" }}</td>
-            <td class="td">{% if u.environment %}<span class="badge-slate">{{ u.get_environment_display }}</span>{% else %}—{% endif %}</td>
+            <td class="td">{{ u.application|default:"—" }}{% if u.environment %} <span class="badge-slate ml-1">{{ u.get_environment_display }}</span>{% endif %}</td>
             <td class="td whitespace-nowrap text-right">{% if can_manage %}
               <a href="{% url 'inventory:usage_edit' u.pk %}" class="text-sm font-medium text-brand-600 hover:text-brand-500">Editar</a>
               <form method="post" action="{% url 'inventory:usage_delete' u.pk %}" class="ml-3 inline" data-confirm="Remover esta utilização?">{% csrf_token %}<button class="text-sm font-medium text-red-600 hover:text-red-500">Remover</button></form>{% endif %}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="px-5 py-8 text-center text-sm text-slate-500">Ainda não foi indicado onde este certificado é usado.</td></tr>
+          <tr><td colspan="5" class="px-5 py-8 text-center text-sm text-slate-500">Ainda não foi indicado onde este certificado é usado.</td></tr>
         {% endfor %}
         </tbody>
       </table></div>
@@ -60,7 +41,25 @@
       </form>
       {% endif %}
     </section>
-    {% if cert.san_list or cert.eku_list or cert.ku_list %}
+        <section class="card p-6">
+      <div class="flex flex-wrap items-center gap-2">
+        {% with c=cert %}{% include "_inv_badge.html" %}{% endwith %}
+        <span class="badge-slate">{{ cert.get_cert_type_display }}</span>
+        {% if cert.is_wildcard %}<span class="badge-slate">wildcard</span>{% endif %}
+      </div>
+      <dl class="mt-5 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+        <div class="sm:col-span-2"><dt class="text-slate-500">Titular</dt><dd class="break-all text-slate-900">{{ cert.subject }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-slate-500">Emitido por</dt><dd class="break-all text-slate-900">{{ cert.issuer }}</dd></div>
+        <div><dt class="text-slate-500">Válido desde</dt><dd>{{ cert.not_before|date:"d/m/Y H:i" }}</dd></div>
+        <div><dt class="text-slate-500">Expira em</dt><dd>{{ cert.not_after|date:"d/m/Y H:i" }}{% if cert.status != "expired" %} <span class="text-slate-500">({{ cert.days_left }} dias)</span>{% endif %}</dd></div>
+        <div><dt class="text-slate-500">Chave</dt><dd>{{ cert.key_info|default:"—" }}</dd></div>
+        <div><dt class="text-slate-500">Algoritmo de assinatura</dt><dd>{{ cert.signature_algorithm|default:"—" }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-slate-500">Número de série</dt><dd class="break-all font-mono text-xs">{{ cert.serial_number }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-slate-500">SHA-1</dt><dd class="break-all font-mono text-xs">{{ cert.sha1 }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-slate-500">SHA-256</dt><dd class="break-all font-mono text-xs">{{ cert.sha256 }}</dd></div>
+      </dl>
+    </section>
+{% if cert.san_list or cert.eku_list or cert.ku_list %}
     <section class="card p-6">
       <h2 class="font-semibold text-slate-900">Utilização</h2>
       {% if cert.san_list %}<p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Nomes (SAN)</p>

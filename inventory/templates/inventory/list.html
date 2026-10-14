@@ -15,7 +15,7 @@
   <a href="?status=expired" class="card p-5"><dt class="text-sm text-slate-500">Expirados</dt><dd class="mt-2 text-3xl font-semibold {% if stats.expired %}text-red-600{% else %}text-slate-900{% endif %}">{{ stats.expired }}</dd></a>
 </dl>
 
-<form method="get" class="mb-5 mt-8 flex flex-col gap-3 lg:flex-row">
+<form method="get" class="mb-5 mt-8 flex flex-col gap-3 lg:flex-row lg:flex-wrap">
   <input type="search" name="q" value="{{ filters.q }}" placeholder="Nome, domínio, IP, servidor, aplicação…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 lg:min-w-[14rem] lg:flex-1">
   <select name="type" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
     <option value="">Todos os tipos</option>
@@ -40,18 +40,18 @@
 
 <div class="card overflow-hidden"><div class="overflow-x-auto">
 <table class="min-w-full divide-y divide-slate-200">
-  <thead class="bg-slate-50"><tr><th class="th">Certificado</th><th class="th">Tipo</th><th class="th">Emitido por</th><th class="th">Onde é usado</th><th class="th">Expira</th><th class="th">Estado</th></tr></thead>
+  <thead class="bg-slate-50"><tr><th class="th">Certificado</th><th class="th">Emitido por</th><th class="th">Onde é usado</th><th class="th">Expira</th><th class="th">Estado</th><th class="th"></th></tr></thead>
   <tbody class="divide-y divide-slate-100">
   {% for c in certs %}
     <tr class="hover:bg-slate-50">
       <td class="td"><a href="{% url 'inventory:detail' c.pk %}" class="font-medium text-slate-900 hover:text-brand-600">{{ c.name }}</a>
-        {% if c.is_wildcard %}<span class="badge-slate ml-1">wildcard</span>{% endif %}
+        <div class="mt-0.5 text-xs font-normal text-slate-500">{{ c.get_cert_type_display }}{% if c.is_wildcard %} · wildcard{% endif %}</div>
         {% if c.san_list %}<div class="max-w-xs truncate text-xs text-slate-500" title="{{ c.san_list|join:', ' }}">{{ c.san_list|join:", " }}</div>{% endif %}</td>
-      <td class="td whitespace-nowrap text-xs">{{ c.get_cert_type_display }}</td>
       <td class="td max-w-xs truncate text-xs" title="{{ c.issuer }}">{{ c.issuer }}</td>
-      <td class="td max-w-xs text-xs">{% for u in c.usages.all|slice:":2" %}<div class="truncate" title="{{ u.where }}">{{ u.where }}</div>{% empty %}<span class="text-slate-400">—</span>{% endfor %}{% if c.usages.all|length > 2 %}<div class="text-slate-400">+{{ c.usages.all|length|add:"-2" }} mais</div>{% endif %}</td>
+      <td class="td max-w-xs text-xs">{% for u in c.usages.all|slice:":2" %}<div class="truncate" title="{{ u.where }}">{{ u.where }}</div>{% empty %}<span class="text-slate-400">—</span>{% endfor %}{% if c.usages.all|length > 2 %}<a href="{% url 'inventory:detail' c.pk %}" class="text-brand-600 hover:text-brand-500">+{{ c.usages.all|length|add:"-2" }} mais: ver todas</a>{% endif %}</td>
       <td class="td whitespace-nowrap">{{ c.not_after|date:"d/m/Y" }}</td>
       <td class="td">{% include "_inv_badge.html" %}</td>
+      <td class="td text-right"><a href="{% url 'inventory:detail' c.pk %}" class="btn-secondary !px-3 !py-1.5">Detalhes</a></td>
     </tr>
   {% empty %}
     <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-slate-500">

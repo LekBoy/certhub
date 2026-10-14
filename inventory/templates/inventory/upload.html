@@ -22,13 +22,23 @@
   </section>
   <section class="card flex flex-col gap-5 p-6">
     <h2 class="font-semibold text-slate-900">Onde é usado <span class="text-sm font-normal text-slate-500">(opcional, aplica-se a todos os certificados deste envio)</span></h2>
-    <div class="grid gap-5 sm:grid-cols-2">
-      {% include "_field.html" with field=form.hostname %}
-      {% include "_field.html" with field=form.ip_address %}
-      {% include "_field.html" with field=form.port %}
-      {% include "_field.html" with field=form.environment %}
+    <div id="rows" class="flex flex-col gap-4">
+      {% for row in rows %}
+      <div class="usage-row rounded-lg border {% if row.errors %}border-red-300 bg-red-50/40{% else %}border-slate-200{% endif %} p-4">
+        <div class="grid gap-4 sm:grid-cols-4">
+          <div><label class="label">Servidor</label><input name="u_hostname" value="{{ row.hostname }}" placeholder="VM-APP01" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"></div>
+          <div><label class="label">IP</label><input name="u_ip_address" value="{{ row.ip_address }}" placeholder="10.0.0.5" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"></div>
+          <div><label class="label">Porta</label><input name="u_port" value="{{ row.port }}" inputmode="numeric" placeholder="443" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"></div>
+          <div><label class="label">Ambiente</label><select name="u_environment" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"><option value="">—</option>{% for value, label in environments %}<option value="{{ value }}" {% if row.environment == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+          <div class="sm:col-span-4"><label class="label">Aplicação</label><input name="u_application" value="{{ row.application }}" placeholder="Intranet, API de pagamentos…" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"></div>
+        </div>
+        {% for e in row.errors %}<p class="mt-2 text-xs text-red-600">{{ e }}</p>{% endfor %}
+        <div class="mt-3 text-right"><button type="button" class="remove-row text-sm font-medium text-red-600 hover:text-red-500">Remover esta linha</button></div>
+      </div>
+      {% endfor %}
     </div>
-    {% include "_field.html" with field=form.application %}
+    <div><button type="button" id="add-row" class="btn-secondary">+ Adicionar outro servidor / aplicação</button>
+      <p class="mt-2 text-xs text-slate-500">Cada linha é um sítio onde o certificado é usado. Pode juntar quantas precisar.</p></div>
     <h2 class="border-t border-slate-100 pt-5 font-semibold text-slate-900">Gestão</h2>
     {% include "_field.html" with field=form.owner %}
     {% include "_field.html" with field=form.notes %}
@@ -36,6 +46,17 @@
   <div class="flex justify-end gap-3"><a href="{% url 'inventory:list' %}" class="btn-secondary">Cancelar</a><button class="btn-primary">Carregar e ler certificados</button></div>
 </form>
 <script>
+  const rowsEl = document.getElementById("rows");
+  const clearRow = row => { row.querySelectorAll("input").forEach(i => i.value = ""); row.querySelectorAll("select").forEach(s => s.value = "");
+    row.querySelectorAll("p").forEach(p => p.remove()); row.classList.remove("border-red-300", "bg-red-50/40"); row.classList.add("border-slate-200"); };
+  document.getElementById("add-row").onclick = () => {
+    const copy = rowsEl.lastElementChild.cloneNode(true); clearRow(copy); rowsEl.appendChild(copy); copy.querySelector("input").focus();
+  };
+  rowsEl.addEventListener("click", ev => {
+    if (!ev.target.classList.contains("remove-row")) return;
+    const row = ev.target.closest(".usage-row");
+    if (rowsEl.children.length > 1) row.remove(); else clearRow(row);
+  });
   const input = document.getElementById("files"), drop = document.getElementById("drop"), label = document.getElementById("fname");
   const show = () => { const n = input.files.length; if (n) label.textContent = n === 1 ? input.files[0].name : n + " ficheiros escolhidos"; };
   input.onchange = show;

@@ -97,19 +97,46 @@ def inventory_export(request):
     return resp
 
 
+USAGE_KEYS = ("hostname", "ip_address", "port", "application", "environment")
+
+
+def _read_usage_rows(post):
+    """Lê as linhas «Onde é usado» (campos repetidos u_hostname, u_ip_address, ...). Ignora as vazias."""
+    cols = {k: post.getlist(f"u_{k}") for k in USAGE_KEYS}
+    rows = []
+    for i in range(max(len(v) for v in cols.values())):
+        row = {k: (cols[k][i].strip() if i < len(cols[k]) else "") for k in USAGE_KEYS}
+        if any(row.values()):
+            rows.append(row)
+    return rows
+
+
 @perm_required(MANAGE)
 def inventory_upload(request):
     form = UploadForm(request.POST if request.method == "POST" else None)
-    if request.method == "POST" and form.is_valid():
+    rows = [{k: "" for k in USAGE_KEYS}]
+    if request.method == "POST":
+        rows, usages, rows_ok = _read_usage_rows(request.POST), [], True
+        for row in rows:
+            uf = UsageForm(row)
+            if uf.is_valid():
+                usages.append({k: v for k, v in uf.cleaned_data.items() if v not in (None, "")})
+            else:
+                rows_ok = False
+                row["errors"] = [e for errs in uf.errors.values() for e in errs]
         files = request.FILES.getlist("files")
-        if not files:
-            messages.error(request, "Escolha pelo menos um ficheiro.")
-        elif len(files) > MAX_FILES:
-            messages.error(request, f"No máximo {MAX_FILES} ficheiros por envio.")
-        else:
-            results = _process(request, files, form.cleaned_data)
-            return render(request, "inventory/upload_result.html", {"results": results, **_summary(results)})
-    return render(request, "inventory/upload.html", {"form": form})
+        if form.is_valid() and rows_ok:
+            if not files:
+                messages.error(request, "Escolha pelo menos um ficheiro.")
+            elif len(files) > MAX_FILES:
+                messages.error(request, f"No máximo {MAX_FILES} ficheiros por envio.")
+            else:
+                results = _process(request, files, form.cleaned_data, usages)
+                return render(request, "inventory/upload_result.html", {"results": results, **_summary(results)})
+        rows = rows or [{k: "" for k in USAGE_KEYS}]
+    return render(request, "inventory/upload.html", {
+        "form": form, "rows": rows, "environments": CertificateUsage.Environment.choices,
+    })
 
 
 def _summary(results):
@@ -118,10 +145,9 @@ def _summary(results):
             "n_error": count("error")}
 
 
-def _process(request, files, data):
+def _process(request, files, data, usages):
     results = []
     meta = {k: data[k] for k in ("owner", "notes") if data.get(k)}
-    usage = {k: data[k] for k in ("hostname", "ip_address", "port", "application", "environment") if data.get(k)}
     for f in files:
         base = {"filename": f.name, "items": []}
         if f.size > MAX_FILE_BYTES:
@@ -139,7 +165,7 @@ def _process(request, files, data):
                 file_items.append({"status": "skipped", "name": info["name"], "cert": None,
                                    "message": "Certificado de CA ignorado (marque «Incluir certificados de CA»)."})
                 continue
-            file_items.append(_save(request, info, f.name, fmt, had_key, meta, usage))
+            file_items.append(_save(request, info, f.name, fmt, had_key, meta, usages))
         for item in file_items:
             results.append({"filename": f.name, **item, "had_key": had_key})
     audit(request, "inventory_uploaded", f"{len(files)} ficheiro(s)",
@@ -147,7 +173,7 @@ def _process(request, files, data):
     return results
 
 
-def _save(request, info, filename, fmt, had_key, meta, usage):
+def _save(request, info, filename, fmt, had_key, meta, usages):
     try:
         with transaction.atomic():
             obj = InventoryCertificate.objects.filter(sha256=info["sha256"]).first()
@@ -164,8 +190,9 @@ def _save(request, info, filename, fmt, had_key, meta, usage):
             for k, v in meta.items():
                 setattr(obj, k, v)
             obj.save()
-            if usage and not obj.usages.filter(**usage).exists():
-                CertificateUsage.objects.create(certificate=obj, **usage)
+            for usage in usages:
+                if not obj.usages.filter(**usage).exists():
+                    CertificateUsage.objects.create(certificate=obj, **usage)
         return {"status": "added" if created else "updated", "name": obj.name, "cert": obj, "message": ""}
     except IntegrityError:
         return {"status": "error", "name": info["name"], "cert": None, "message": "Erro ao guardar o certificado."}

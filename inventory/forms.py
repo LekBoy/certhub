@@ -21,12 +21,6 @@ class UploadForm(TailwindMixin, forms.Form):
                                    help_text="Usada para todos os .pfx deste envio. Não é guardada.")
     include_ca = forms.BooleanField(label="Incluir certificados de CA / cadeia", required=False,
                                     help_text="Por omissão só entram os certificados finais (servidor, cliente, etc.).")
-    hostname = forms.CharField(label="Servidor", max_length=255, required=False, help_text="Ex.: VM-APP01")
-    ip_address = forms.GenericIPAddressField(label="IP", required=False)
-    port = forms.IntegerField(label="Porta", required=False, min_value=1, max_value=65535)
-    application = forms.CharField(label="Aplicação", max_length=255, required=False, help_text="Ex.: Intranet, API de pagamentos")
-    environment = forms.ChoiceField(label="Ambiente", required=False,
-                                    choices=[("", "—")] + CertificateUsage.Environment.choices)
     owner = forms.CharField(label="Responsável", max_length=255, required=False)
     notes = forms.CharField(label="Notas", required=False, widget=forms.Textarea(attrs={"rows": 3}))
 

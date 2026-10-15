@@ -398,3 +398,16 @@ class PfxUploadTests(ManageBase):
 
 def AuditEventText():
     return [f"{e.target} {e.detail}" for e in AuditEvent.objects.all()]
+
+
+class AutofillGuardTests(ManageBase):
+    def test_pfx_password_fields_block_browser_password_autofill(self):
+        r = self.client.get("/certhub/certificates/new/")
+        self.assertContains(r, 'name="pfx_password"')
+        html = r.content.decode()
+        tag = html[html.index('name="pfx_password"') - 200: html.index('name="pfx_password"') + 200]
+        self.assertIn('autocomplete="new-password"', tag)
+        self.assertIn('autocomplete="off"', html[html.index('name="name"') - 150: html.index('name="name"') + 150])
+        r = self.client.get("/certhub/inventory/upload/")
+        html = r.content.decode()
+        self.assertIn('autocomplete="new-password"', html[html.index('name="pfx_password"') - 200: html.index('name="pfx_password"') + 200])

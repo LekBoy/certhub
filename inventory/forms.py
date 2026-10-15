@@ -17,7 +17,7 @@ class UsageFieldsMixin:
 
 class UploadForm(TailwindMixin, forms.Form):
     pfx_password = forms.CharField(label="Palavra-passe dos .pfx", required=False,
-                                   widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "off"}),
+                                   widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "new-password"}),
                                    help_text="Usada para todos os .pfx deste envio. Não é guardada.")
     include_ca = forms.BooleanField(label="Incluir certificados de CA / cadeia", required=False,
                                     help_text="Por omissão só entram os certificados finais (servidor, cliente, etc.).")

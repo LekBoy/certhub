@@ -143,8 +143,9 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
         help_text="Só a parte pública. É rejeitado se não tiver a utilização Code Signing (1.3.6.1.5.5.7.3.3).")
     pfx_file = forms.FileField(
         label="Ficheiro .pfx / .p12", required=False)
+    # "new-password" impede o browser de preencher aqui a palavra-passe guardada do login
     pfx_password = forms.CharField(label="Palavra-passe do .pfx", required=False,
-                                   widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "off"}))
+                                   widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "new-password"}))
     allowed_groups = forms.ModelMultipleChoiceField(queryset=Group.objects.all(), required=False,
                                                     widget=forms.CheckboxSelectMultiple, label="Grupos com acesso")
 
@@ -154,6 +155,7 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
                   "cert_file_path", "custom_command", "timestamp_url", "verify", "allowed_groups",
                   "annual_limit", "subscription_start", "renewal_date", "notes"]
         widgets = {
+            "name": forms.TextInput(attrs={"autocomplete": "off"}),
             "subscription_start": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "renewal_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "custom_command": forms.Textarea(attrs={"rows": 7, "class": "font-mono"}),

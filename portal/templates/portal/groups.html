@@ -3,16 +3,42 @@
 {% block heading %}Grupos{% endblock %}
 {% block actions %}<a href="{% url 'portal:group_create' %}" class="btn-primary">Novo grupo</a>{% endblock %}
 {% block content %}
-<div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-  {% for g in groups %}
-  <a href="{% url 'portal:group_edit' g.pk %}" class="card block p-5 transition hover:ring-brand-300">
-    <div class="flex items-center justify-between"><h2 class="font-semibold text-slate-900">{{ g.name }}</h2><span class="badge-slate">{{ g.n_members }} membro{{ g.n_members|pluralize }}</span></div>
-    <div class="mt-3 flex flex-wrap gap-1.5">
-      {% for p in g.permissions.all %}<span class="badge-slate">{{ p.name }}</span>{% empty %}<span class="text-sm text-slate-400">Sem permissões</span>{% endfor %}
-    </div>
-  </a>
-  {% empty %}
-  <div class="card col-span-full px-5 py-12 text-center text-sm text-slate-500">Ainda não há grupos.</div>
-  {% endfor %}
+<form method="get" class="mb-5 flex gap-3">
+  <input type="search" name="q" value="{{ q }}" placeholder="Pesquisar por grupo ou por membro…" class="block w-full max-w-sm rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+  <button class="btn-secondary" type="submit">Pesquisar</button>
+  {% if q %}<a href="{% url 'portal:groups' %}" class="btn-secondary">Limpar</a>{% endif %}
+</form>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+  <table class="min-w-full divide-y divide-slate-200">
+    <thead class="bg-slate-50"><tr>
+      <th class="th">Grupo</th><th class="th">Acesso a módulos</th><th class="th">Permissões</th><th class="th">Membros</th><th class="th"></th>
+    </tr></thead>
+    <tbody class="divide-y divide-slate-100">
+    {% for r in rows %}
+      <tr class="hover:bg-slate-50">
+        <td class="td"><a href="{% url 'portal:group_edit' r.group.pk %}" class="font-semibold text-slate-900 hover:text-brand-600">{{ r.group.name }}</a></td>
+        <td class="td">{% for m in r.modules %}<span class="badge-green mr-1">{{ m.name }}</span>{% empty %}<span class="text-slate-400">nenhum</span>{% endfor %}</td>
+        <td class="td max-w-md">
+          {% if r.permissions %}
+            <span class="font-medium text-slate-900">{{ r.permissions|length }}</span>
+            <span class="text-slate-500">· {{ r.permissions|slice:":2"|join:", " }}{% if r.permissions|length > 2 %} <span title="{{ r.permissions|join:', ' }}" class="cursor-help text-brand-600">+{{ r.permissions|length|add:"-2" }} mais</span>{% endif %}</span>
+          {% else %}<span class="text-slate-400">nenhuma</span>{% endif %}
+        </td>
+        <td class="td">
+          {% if r.members %}<span class="font-medium text-slate-900">{{ r.members|length }}</span>
+            <span class="text-slate-500">· {{ r.members|slice:":3"|join:", " }}{% if r.members|length > 3 %} +{{ r.members|length|add:"-3" }}{% endif %}</span>
+          {% else %}<span class="text-slate-400">sem membros</span>{% endif %}
+        </td>
+        <td class="td whitespace-nowrap text-right"><a href="{% url 'portal:group_edit' r.group.pk %}" class="btn-secondary !px-3 !py-1.5">Editar</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="px-5 py-12 text-center text-sm text-slate-500">{% if q %}Nenhum grupo corresponde à pesquisa.{% else %}Ainda não há grupos.{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div class="border-t border-slate-100 px-5 py-3 text-sm text-slate-500">{{ rows|length }} de {{ total }} grupo{{ total|pluralize }}</div>
 </div>
 {% endblock %}

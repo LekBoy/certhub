@@ -154,10 +154,23 @@ def user_delete(request, pk):
 # ------------------------------------------------------------------------ grupos
 @perm_required("portal.manage_groups")
 def groups(request):
-    return render(request, "portal/groups.html", {
-        "groups": Group.objects.annotate(n_members=Count("user", distinct=True)).prefetch_related("permissions")
-        .order_by("name"),
-    })
+    from .forms import permission_labels
+
+    labels = dict(permission_labels())
+    q = request.GET.get("q", "").strip()
+    qs = Group.objects.annotate(n_members=Count("user", distinct=True)).prefetch_related("permissions__content_type", "user_set")
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(user__username__icontains=q)).distinct()
+    rows = []
+    for g in qs.order_by("name"):
+        codes = [f"{p.content_type.app_label}.{p.codename}" for p in g.permissions.all()]
+        accessible = [m for m in modules.all_modules() if m.access_perm in codes]
+        inner = [labels[c] for c in codes if c in labels and not any(c == m.access_perm for m in modules.all_modules())]
+        rows.append({
+            "group": g, "modules": accessible, "permissions": sorted(inner),
+            "members": sorted(u.username for u in g.user_set.all()),
+        })
+    return render(request, "portal/groups.html", {"rows": rows, "q": q, "total": Group.objects.count()})
 
 
 def _permission_groups():

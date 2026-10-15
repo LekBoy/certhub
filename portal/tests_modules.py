@@ -312,3 +312,31 @@ class UpgradeTests(TestCase):
         codes = {f"{p.content_type.app_label}.{p.codename}" for p in admins.permissions.select_related("content_type")}
         from .permissions import all_permission_codes
         self.assertTrue(set(all_permission_codes()) <= codes)
+
+
+class GroupListTests(TestCase):
+    def setUp(self):
+        self.root = User.objects.create_superuser("root", password="x")
+        self.client.force_login(self.root)
+
+    def test_list_is_a_table_with_portuguese_labels_only(self):
+        r = self.client.get("/manage/groups/")
+        self.assertContains(r, "<table")
+        self.assertContains(r, "Acesso a módulos")
+        self.assertNotContains(r, "Can view")  # nomes de permissões em inglês do Django
+        self.assertNotContains(r, "Aceder ao módulo")  # o acesso mostra-se na coluna própria, não nas permissões
+
+    def test_rows_show_modules_permissions_and_members(self):
+        make_user("ana", groups=["Assinantes"])
+        row = next(x for x in self.client.get("/manage/groups/").context["rows"] if x["group"].name == "Assinantes")
+        self.assertEqual([m.name for m in row["modules"]], ["CertHub"])
+        self.assertEqual(row["permissions"], ["Assinar ficheiros"])
+        self.assertEqual(row["members"], ["ana"])
+
+    def test_search_by_group_or_member(self):
+        make_user("zeca", groups=["Auditores"])
+        by_name = self.client.get("/manage/groups/?q=assin").context["rows"]
+        self.assertEqual([r["group"].name for r in by_name], ["Assinantes"])
+        by_member = self.client.get("/manage/groups/?q=zeca").context["rows"]
+        self.assertEqual([r["group"].name for r in by_member], ["Auditores"])
+        self.assertEqual(self.client.get("/manage/groups/?q=zzz").context["rows"], [])

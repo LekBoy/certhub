@@ -223,12 +223,16 @@ class GroupFormTests(TestCase):
         self.root = User.objects.create_superuser("root", password="x")
         self.client.force_login(self.root)
 
-    def test_form_has_module_block_and_platform_section(self):
+    def test_form_is_a_dual_list_with_module_access_and_platform_options(self):
         r = self.client.get("/manage/groups/new/")
+        self.assertContains(r, 'class="duallist"', count=2)  # permissões e membros
         self.assertContains(r, "Acesso ao módulo CertHub")
-        self.assertContains(r, "Plataforma")
+        self.assertContains(r, 'optgroup label="Plataforma"')
         self.assertContains(r, "Gerir módulos")
-        self.assertContains(r, 'name="perms" value="portal.access_certhub"')
+        self.assertContains(r, 'value="portal.access_certhub"')
+        self.assertContains(r, 'name="perms"')
+        self.assertContains(r, 'name="members"')
+        self.assertEqual(r.context["perm_chosen"], [])  # grupo novo: nada escolhido
 
     def test_inner_permissions_without_access_are_not_saved(self):
         self.client.post("/manage/groups/new/", {"name": "Sem acesso", "perms": ["signing.can_sign", "portal.manage_users"]})
@@ -243,8 +247,32 @@ class GroupFormTests(TestCase):
     def test_edit_shows_current_state(self):
         g = Group.objects.get(name="Assinantes")
         r = self.client.get(f"/manage/groups/{g.pk}/")
-        self.assertTrue(r.context["module_blocks"][0]["has_access"])
-        self.assertIn("signing.can_sign", r.context["selected"])
+        chosen = [o["value"] for grp in r.context["perm_chosen"] for o in grp["options"]]
+        available = [o["value"] for grp in r.context["perm_available"] for o in grp["options"]]
+        self.assertEqual(sorted(chosen), ["portal.access_certhub", "signing.can_sign"])
+        self.assertIn("portal.manage_users", available)
+        self.assertEqual(set(chosen) & set(available), set())
+        self.assertIn("portal.access_certhub", r.context["selected"])
+
+    def test_members_are_split_between_available_and_chosen(self):
+        g = Group.objects.get(name="Assinantes")
+        member = make_user("membro", groups=["Assinantes"])
+        other = make_user("outro")
+        r = self.client.get(f"/manage/groups/{g.pk}/")
+        chosen = [o["label"] for grp in r.context["member_chosen"] for o in grp["options"]]
+        available = [o["label"] for grp in r.context["member_available"] for o in grp["options"]]
+        self.assertTrue(any(c.startswith("membro") for c in chosen))
+        self.assertTrue(any(a.startswith("outro") for a in available))
+
+    def test_form_redisplays_chosen_items_after_an_error(self):
+        r = self.client.post("/manage/groups/new/", {"name": "", "perms": ["portal.access_certhub", "signing.can_sign"]})
+        self.assertEqual(r.status_code, 200)
+        chosen = [o["value"] for grp in r.context["perm_chosen"] for o in grp["options"]]
+        self.assertEqual(sorted(chosen), ["portal.access_certhub", "signing.can_sign"])
+
+    def test_dual_list_script_is_served(self):
+        from django.contrib.staticfiles import finders
+        self.assertTrue(finders.find("js/dual-list.js"))
 
 
 class UpgradeTests(TestCase):

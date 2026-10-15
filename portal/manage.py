@@ -160,12 +160,50 @@ def groups(request):
     })
 
 
+def _permission_groups():
+    """Grupos de opções para a lista de permissões: Plataforma e, por módulo, o acesso + as permissões."""
+    out = [{"label": "Plataforma", "options": [
+        {"value": c, "label": l, "desc": d, "module": "", "access": False}
+        for _, rows in PLATFORM_PERMISSION_GROUPS for c, l, d in rows]}]
+    for m in modules.all_modules():
+        out.append({"label": f"{m.name} · Acesso", "options": [
+            {"value": m.access_perm, "label": f"Acesso ao módulo {m.name}", "desc": m.description,
+             "module": m.key, "access": True}]})
+        for title, rows in m.permission_groups:
+            out.append({"label": f"{m.name} · {title}", "options": [
+                {"value": c, "label": l, "desc": d, "module": m.key, "access": False} for c, l, d in rows]})
+    return out
+
+
+def _split(groups, chosen):
+    """Divide os grupos de opções em (disponíveis, escolhidas), mantendo a ordem original (data-order)."""
+    available, picked, n = [], [], 0
+    for gi, g in enumerate(groups):
+        a_opts, c_opts = [], []
+        for opt in g["options"]:
+            opt = {**opt, "order": n}
+            n += 1
+            (c_opts if opt["value"] in chosen else a_opts).append(opt)
+        if a_opts:
+            available.append({"label": g["label"], "order": gi, "options": a_opts})
+        if c_opts:
+            picked.append({"label": g["label"], "order": gi, "options": c_opts})
+    return available, picked
+
+
 def _group_form_context(form, group):
-    selected = set(form["perms"].value() or [])
+    selected = {str(v) for v in (form["perms"].value() or [])}
+    members = {str(v) for v in (form["members"].value() or [])}
+    perm_available, perm_chosen = _split(_permission_groups(), selected)
+    people = [{"label": "", "options": [
+        {"value": str(u.pk), "label": u.username + (f" · {u.get_full_name()}" if u.get_full_name() else ""),
+         "desc": u.email, "module": "", "access": False} for u in form.fields["members"].queryset]}]
+    member_available, member_chosen = _split(people, members)
     return {
         "form": form, "group": group, "selected": selected,
-        "platform_groups": PLATFORM_PERMISSION_GROUPS,
-        "module_blocks": [{"module": m, "has_access": m.access_perm in selected} for m in modules.all_modules()],
+        "perm_available": perm_available, "perm_chosen": perm_chosen,
+        "member_available": member_available, "member_chosen": member_chosen,
+        "n_perm_chosen": sum(len(g["options"]) for g in perm_chosen),
     }
 
 

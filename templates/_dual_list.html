@@ -1,0 +1,35 @@
+{# Lista dupla. Parâmetros: name, available, chosen (grupos de opções), rules ("modules" ou ""), title_available, title_chosen #}
+<div class="duallist" data-rules="{{ rules }}">
+  <div class="grid items-stretch gap-3 md:grid-cols-[1fr_auto_1fr]">
+    <div class="dl-pane flex flex-col rounded-lg border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2 rounded-t-lg">
+        <p class="text-sm font-semibold text-slate-700">{{ title_available }} <span class="dl-count-available ml-1 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200">0</span></p>
+        <button type="button" class="dl-add-all text-xs font-medium text-brand-600 hover:text-brand-500">Escolher todas ›</button>
+      </div>
+      <div class="p-2"><input type="search" class="dl-filter block w-full rounded-md border-slate-300 py-1.5 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" placeholder="Pesquisar…" autocomplete="off"></div>
+      <select multiple size="12" class="dl-available block h-80 w-full flex-1 rounded-b-lg border-0 text-sm focus:ring-0" aria-label="{{ title_available }}">
+        {% for g in available %}{% if g.label %}<optgroup label="{{ g.label }}" data-order="{{ g.order }}">{% endif %}
+          {% for o in g.options %}<option value="{{ o.value }}" title="{{ o.desc }}" data-order="{{ o.order }}" data-group="{{ g.label }}" data-gorder="{{ g.order }}" data-module="{{ o.module }}" {% if o.access %}data-access="1"{% endif %}>{{ o.label }}</option>{% endfor %}
+        {% if g.label %}</optgroup>{% endif %}{% endfor %}
+      </select>
+    </div>
+
+    <div class="flex items-center justify-center gap-2 md:flex-col">
+      <button type="button" class="dl-add btn-secondary !px-3" title="Adicionar as selecionadas (ou duplo clique)" aria-label="Adicionar"><span class="hidden md:inline">›</span><span class="md:hidden">↓</span></button>
+      <button type="button" class="dl-remove btn-secondary !px-3" title="Remover as selecionadas (ou duplo clique)" aria-label="Remover"><span class="hidden md:inline">‹</span><span class="md:hidden">↑</span></button>
+    </div>
+
+    <div class="dl-pane flex flex-col rounded-lg border border-brand-200 ring-1 ring-brand-100">
+      <div class="flex items-center justify-between border-b border-brand-100 bg-brand-50 px-3 py-2 rounded-t-lg">
+        <p class="text-sm font-semibold text-brand-800">{{ title_chosen }} <span class="dl-count-chosen ml-1 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-brand-200">0</span></p>
+        <button type="button" class="dl-remove-all text-xs font-medium text-brand-600 hover:text-brand-500">‹ Remover todas</button>
+      </div>
+      <div class="p-2"><input type="search" class="dl-filter block w-full rounded-md border-slate-300 py-1.5 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" placeholder="Pesquisar…" autocomplete="off"></div>
+      <select multiple size="12" name="{{ name }}" class="dl-chosen block h-80 w-full flex-1 rounded-b-lg border-0 text-sm focus:ring-0" aria-label="{{ title_chosen }}">
+        {% for g in chosen %}{% if g.label %}<optgroup label="{{ g.label }}" data-order="{{ g.order }}">{% endif %}
+          {% for o in g.options %}<option value="{{ o.value }}" title="{{ o.desc }}" data-order="{{ o.order }}" data-group="{{ g.label }}" data-gorder="{{ g.order }}" data-module="{{ o.module }}" {% if o.access %}data-access="1"{% endif %}>{{ o.label }}</option>{% endfor %}
+        {% if g.label %}</optgroup>{% endif %}{% endfor %}
+      </select>
+    </div>
+  </div>
+</div>

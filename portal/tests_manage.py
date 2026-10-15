@@ -32,24 +32,25 @@ class GroupsAndPermissionsTests(ManageBase):
 
     def test_pages_require_permission(self):
         self.client.force_login(self.user_in("s", "Assinantes"))
-        for url in ("/manage/users/", "/manage/groups/", "/manage/settings/", "/manage/audit/",
-                    "/manage/tokens/", "/certificates/new/"):
+        for url in ("/manage/users/", "/manage/groups/", "/certhub/settings/", "/manage/audit/",
+                    "/certhub/tokens/all/", "/certhub/certificates/new/"):
             self.assertEqual(self.client.get(url).status_code, 403, url)
 
     def test_create_group_with_permissions_and_members(self):
         member = self.user_in("m")
         r = self.client.post("/manage/groups/new/", {
-            "name": "Equipa PAD", "perms": ["signing.can_sign", "portal.view_audit"], "members": [member.pk]})
+            "name": "Equipa PAD", "perms": ["portal.access_certhub", "signing.can_sign", "portal.view_audit"],
+            "members": [member.pk]})
         self.assertRedirects(r, "/manage/groups/")
         g = Group.objects.get(name="Equipa PAD")
-        self.assertEqual({p.codename for p in g.permissions.all()}, {"can_sign", "view_audit"})
+        self.assertEqual({p.codename for p in g.permissions.all()}, {"access_certhub", "can_sign", "view_audit"})
         self.assertTrue(member.has_perm("signing.can_sign"))
         self.assertTrue(AuditEvent.objects.filter(action="group_created", target="Equipa PAD").exists())
 
     def test_edit_group_permissions(self):
         g = Group.objects.get(name="Assinantes")
-        self.client.post(f"/manage/groups/{g.pk}/", {"name": "Assinantes", "perms": ["portal.view_all_history"]})
-        self.assertEqual([p.codename for p in g.permissions.all()], ["view_all_history"])
+        self.client.post(f"/manage/groups/{g.pk}/", {"name": "Assinantes", "perms": ["portal.access_certhub", "portal.view_all_history"]})
+        self.assertEqual(sorted(p.codename for p in g.permissions.all()), ["access_certhub", "view_all_history"])
 
     def test_cannot_remove_last_admin_via_group(self):
         g = Group.objects.get(name="Administradores")
@@ -179,7 +180,7 @@ class TokenAdminTests(ManageBase):
         t = SigningToken(user=u, name="ci")
         t.set_new_token()
         t.save()
-        self.client.post(f"/manage/tokens/{t.pk}/revoke/")
+        self.client.post(f"/certhub/tokens/all/{t.pk}/revoke/")
         t.refresh_from_db()
         self.assertFalse(t.valid)
 
@@ -189,7 +190,7 @@ class TokenAdminTests(ManageBase):
         s.save()
         u = self.user_in("dev", "Assinantes")
         self.client.force_login(u)
-        self.client.post("/tokens/", {"name": "x"})
+        self.client.post("/certhub/tokens/", {"name": "x"})
         days = (SigningToken.objects.get().expires_at - SigningToken.objects.get().created_at).days
         self.assertIn(days, (6, 7))
 
@@ -197,10 +198,10 @@ class TokenAdminTests(ManageBase):
 class SettingsAndAuditTests(ManageBase):
     def test_update_settings(self):
         s = SiteSettings.load()
-        r = self.client.post("/manage/settings/", {
+        r = self.client.post("/certhub/settings/", {
             "signtool_path": r"D:\signtool.exe", "timestamp_url": "http://tsa/ts", "verify_after_sign": "on",
             "timeout_seconds": 60, "max_upload_mb": 10, "allowed_extensions": ".dll, exe", "token_valid_days": 30})
-        self.assertRedirects(r, "/manage/settings/")
+        self.assertRedirects(r, "/certhub/settings/")
         s.refresh_from_db()
         self.assertEqual(s.signtool_path, r"D:\signtool.exe")
         self.assertEqual(s.extensions, {".dll", ".exe"})
@@ -208,7 +209,7 @@ class SettingsAndAuditTests(ManageBase):
         self.assertTrue(AuditEvent.objects.filter(action="settings_updated").exists())
 
     def test_settings_validation(self):
-        r = self.client.post("/manage/settings/", {
+        r = self.client.post("/certhub/settings/", {
             "signtool_path": "x", "timeout_seconds": 0, "max_upload_mb": 1, "allowed_extensions": " , ", "token_valid_days": 1})
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.context["form"].errors)
@@ -217,7 +218,7 @@ class SettingsAndAuditTests(ManageBase):
         import os
         os.environ["SM_API_KEY"] = "super-secret-value"
         try:
-            self.assertNotContains(self.client.get("/manage/settings/"), "super-secret-value")
+            self.assertNotContains(self.client.get("/certhub/settings/"), "super-secret-value")
         finally:
             del os.environ["SM_API_KEY"]
 
@@ -236,87 +237,87 @@ class CertificateManagementTests(ManageBase):
         return data
 
     def test_register_certificate(self):
-        r = self.client.post("/certificates/new/", self.payload(annual_limit=1000, notes="renova em 2027"))
+        r = self.client.post("/certhub/certificates/new/", self.payload(annual_limit=1000, notes="renova em 2027"))
         cert = SigningCertificate.objects.get()
-        self.assertRedirects(r, f"/certificates/{cert.pk}/")
+        self.assertRedirects(r, f"/certhub/certificates/{cert.pk}/")
         self.assertEqual(len(cert.thumbprint), 40)
         self.assertEqual(cert.annual_limit, 1000)
 
     def test_rejects_certificate_without_code_signing(self):
         from cryptography.x509.oid import ExtendedKeyUsageOID
         bad = SimpleUploadedFile("a.cer", make_cert(ExtendedKeyUsageOID.SERVER_AUTH))
-        r = self.client.post("/certificates/new/", self.payload(certificate_file=bad))
+        r = self.client.post("/certhub/certificates/new/", self.payload(certificate_file=bad))
         self.assertEqual(r.status_code, 200)
         self.assertFalse(SigningCertificate.objects.exists())
 
     def test_keylocker_alias_requires_fields(self):
-        r = self.client.post("/certificates/new/", self.payload(method="keylocker_alias"))
+        r = self.client.post("/certhub/certificates/new/", self.payload(method="keylocker_alias"))
         self.assertEqual(r.status_code, 200)
         self.assertIn("csp_name", r.context["form"].errors)
 
     def test_custom_command_needs_file_marker(self):
-        r = self.client.post("/certificates/new/", self.payload(method="custom", custom_command="tool\nsign"))
+        r = self.client.post("/certhub/certificates/new/", self.payload(method="custom", custom_command="tool\nsign"))
         self.assertIn("custom_command", r.context["form"].errors)
 
     def test_duplicate_certificate_rejected(self):
         pem = make_cert()
-        self.client.post("/certificates/new/", self.payload(certificate_file=SimpleUploadedFile("a.cer", pem)))
-        r = self.client.post("/certificates/new/", self.payload(name="Outro", certificate_file=SimpleUploadedFile("b.cer", pem)))
+        self.client.post("/certhub/certificates/new/", self.payload(certificate_file=SimpleUploadedFile("a.cer", pem)))
+        r = self.client.post("/certhub/certificates/new/", self.payload(name="Outro", certificate_file=SimpleUploadedFile("b.cer", pem)))
         self.assertEqual(r.status_code, 200)
         self.assertEqual(SigningCertificate.objects.count(), 1)
 
     def test_edit_and_preview(self):
-        self.client.post("/certificates/new/", self.payload())
+        self.client.post("/certhub/certificates/new/", self.payload())
         cert = SigningCertificate.objects.get()
-        r = self.client.post(f"/certificates/{cert.pk}/", {
+        r = self.client.post(f"/certhub/certificates/{cert.pk}/", {
             "name": "PAD2", "is_active": "on", "method": "keylocker_thumbprint", "verify": "no",
             "allowed_groups": [Group.objects.get(name="Assinantes").pk]})
-        self.assertRedirects(r, f"/certificates/{cert.pk}/")
+        self.assertRedirects(r, f"/certhub/certificates/{cert.pk}/")
         cert.refresh_from_db()
         self.assertEqual(cert.name, "PAD2")
         self.assertEqual(cert.allowed_groups.count(), 1)
-        self.assertIn("/sha1", self.client.get(f"/certificates/{cert.pk}/").context["preview"])
+        self.assertIn("/sha1", self.client.get(f"/certhub/certificates/{cert.pk}/").context["preview"])
 
     def test_test_signing_button(self):
         from unittest import mock
-        self.client.post("/certificates/new/", self.payload())
+        self.client.post("/certhub/certificates/new/", self.payload())
         cert = SigningCertificate.objects.get()
         s = SiteSettings.load()
         s.verify_after_sign = False
         s.save()
         ok = mock.Mock(returncode=0, stdout="Successfully signed", stderr="")
         with mock.patch("signing.signer.subprocess.run", return_value=ok):
-            r = self.client.post(f"/certificates/{cert.pk}/test/")
+            r = self.client.post(f"/certhub/certificates/{cert.pk}/test/")
         self.assertTrue(r.context["test_ok"])
         self.assertIn("Successfully signed", r.context["test_output"])
         self.assertFalse(SigningRequest.objects.exists())  # o teste não conta nem entra no histórico
 
     def test_test_signing_failure_shown(self):
         from unittest import mock
-        self.client.post("/certificates/new/", self.payload())
+        self.client.post("/certhub/certificates/new/", self.payload())
         cert = SigningCertificate.objects.get()
         bad = mock.Mock(returncode=1, stdout="", stderr="No certificates were found")
         with mock.patch("signing.signer.subprocess.run", return_value=bad):
-            r = self.client.post(f"/certificates/{cert.pk}/test/")
+            r = self.client.post(f"/certhub/certificates/{cert.pk}/test/")
         self.assertFalse(r.context["test_ok"])
         self.assertIn("No certificates", r.context["test_output"])
 
     def test_delete_certificate(self):
-        self.client.post("/certificates/new/", self.payload())
+        self.client.post("/certhub/certificates/new/", self.payload())
         cert = SigningCertificate.objects.get()
-        self.client.post(f"/certificates/{cert.pk}/delete/")
+        self.client.post(f"/certhub/certificates/{cert.pk}/delete/")
         self.assertFalse(SigningCertificate.objects.exists())
 
     def test_cannot_delete_used_certificate(self):
-        self.client.post("/certificates/new/", self.payload())
+        self.client.post("/certhub/certificates/new/", self.payload())
         cert = SigningCertificate.objects.get()
         SigningRequest.objects.create(user=self.admin, certificate=cert, filename="a.dll", size=1,
                                       sha256_original="a" * 64, status="ok")
-        self.client.post(f"/certificates/{cert.pk}/delete/")
+        self.client.post(f"/certhub/certificates/{cert.pk}/delete/")
         self.assertTrue(SigningCertificate.objects.exists())
 
     def test_dashboard_shows_limit_and_renewal_alerts(self):
-        self.client.post("/certificates/new/", self.payload(annual_limit=1))
+        self.client.post("/certhub/certificates/new/", self.payload(annual_limit=1))
         cert = SigningCertificate.objects.get()
         cert.renewal_date = datetime.date.today() + datetime.timedelta(days=5)
         cert.save()
@@ -332,7 +333,7 @@ class PfxUploadTests(ManageBase):
         data = {"name": "Do PFX", "is_active": "on", "method": "store", "store_name": "My", "machine_store": "on",
                 "verify": "default", "pfx_file": SimpleUploadedFile("c.pfx", pfx), "pfx_password": password}
         data.update(extra)
-        return self.client.post("/certificates/new/", data, follow=True)
+        return self.client.post("/certhub/certificates/new/", data, follow=True)
 
     def test_register_from_pfx_stores_only_public_data(self):
         r = self.post_pfx(make_pfx())
@@ -355,7 +356,7 @@ class PfxUploadTests(ManageBase):
         self.assertFalse(any(f.endswith((".pfx", ".p12")) for _, _, fs in os.walk(settings.BASE_DIR / "static") for f in fs))
 
     def test_wrong_pfx_password_shows_error(self):
-        r = self.client.post("/certificates/new/", {
+        r = self.client.post("/certhub/certificates/new/", {
             "name": "x", "is_active": "on", "method": "store", "verify": "default",
             "pfx_file": SimpleUploadedFile("c.pfx", make_pfx()), "pfx_password": "bad"})
         self.assertEqual(r.status_code, 200)
@@ -369,7 +370,7 @@ class PfxUploadTests(ManageBase):
         self.assertFalse(SigningCertificate.objects.exists())
 
     def test_cannot_send_both_files(self):
-        r = self.client.post("/certificates/new/", {
+        r = self.client.post("/certhub/certificates/new/", {
             "name": "x", "is_active": "on", "method": "store", "verify": "default",
             "certificate_file": SimpleUploadedFile("a.cer", make_cert()),
             "pfx_file": SimpleUploadedFile("c.pfx", make_pfx()), "pfx_password": "s3cret"})
@@ -381,7 +382,7 @@ class PfxUploadTests(ManageBase):
         from cryptography.hazmat.primitives.serialization.pkcs12 import load_pkcs12
         pfx = make_pfx()
         cert_pem = load_pkcs12(pfx, b"s3cret").cert.certificate.public_bytes(Encoding.PEM)
-        self.client.post("/certificates/new/", {
+        self.client.post("/certhub/certificates/new/", {
             "name": "A", "is_active": "on", "method": "store", "verify": "default",
             "certificate_file": SimpleUploadedFile("a.cer", cert_pem)})
         r = self.post_pfx(pfx, name="B")
@@ -390,7 +391,7 @@ class PfxUploadTests(ManageBase):
     def test_detail_page_shows_extracted_info(self):
         self.post_pfx(make_pfx())
         cert = SigningCertificate.objects.get()
-        r = self.client.get(f"/certificates/{cert.pk}/")
+        r = self.client.get(f"/certhub/certificates/{cert.pk}/")
         self.assertContains(r, "RSA 2048 bits")
         self.assertContains(r, cert.serial_number)
 

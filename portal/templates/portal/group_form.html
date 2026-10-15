@@ -10,21 +10,45 @@
       {% if form.non_field_errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ form.non_field_errors }}</div>{% endif %}
       {% include "_field.html" with field=form.name %}
     </section>
-    <section class="card p-6">
-      <h2 class="font-semibold text-slate-900">Permissões</h2>
-      {% for e in form.perms.errors %}<p class="mt-1 text-xs text-red-600">{{ e }}</p>{% endfor %}
-      <div class="mt-4 space-y-6">
-        {% for title, items in permission_groups %}
+    {% for e in form.perms.errors %}<p class="text-xs text-red-600">{{ e }}</p>{% endfor %}
+    {% for block in module_blocks %}
+    <section class="card module-block" data-access="{{ block.module.access_perm }}">
+      <div class="border-b border-slate-100 p-5">
+        <label class="flex cursor-pointer items-start gap-3">
+          <input type="checkbox" name="perms" value="{{ block.module.access_perm }}" {% if block.has_access %}checked{% endif %} class="access-toggle mt-1 h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+          <span><span class="block text-base font-semibold text-slate-900">Acesso ao módulo {{ block.module.name }}</span>
+            <span class="block text-sm text-slate-500">{{ block.module.description }} Sem acesso, o módulo não aparece e as permissões abaixo não têm efeito.</span></span>
+        </label>
+      </div>
+      <div class="module-perms space-y-6 p-5 {% if not block.has_access %}opacity-50{% endif %}">
+        {% for title, items in block.module.permission_groups %}
         <div>
           <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ title }}</p>
           <div class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
             {% for code, label, desc in items %}
             <label class="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-slate-50">
-              <input type="checkbox" name="perms" value="{{ code }}" {% if code in selected %}checked{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+              <input type="checkbox" name="perms" value="{{ code }}" {% if code in selected %}checked{% endif %} {% if not block.has_access %}disabled{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
               <span><span class="block text-sm font-medium text-slate-800">{{ label }}</span><span class="block text-xs text-slate-500">{{ desc }}</span></span>
             </label>
             {% endfor %}
           </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+    <section class="card p-6">
+      <h2 class="font-semibold text-slate-900">Plataforma</h2>
+      <p class="mt-1 text-sm text-slate-500">Administração do InfraHub, fora dos módulos.</p>
+      <div class="mt-4 space-y-6">
+        {% for title, items in platform_groups %}
+        <div class="divide-y divide-slate-100 rounded-lg border border-slate-200">
+          {% for code, label, desc in items %}
+          <label class="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-slate-50">
+            <input type="checkbox" name="perms" value="{{ code }}" {% if code in selected %}checked{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+            <span><span class="block text-sm font-medium text-slate-800">{{ label }}</span><span class="block text-xs text-slate-500">{{ desc }}</span></span>
+          </label>
+          {% endfor %}
         </div>
         {% endfor %}
       </div>
@@ -51,4 +75,16 @@
   });
 </script>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Sem acesso ao módulo, as permissões dele ficam desativadas (o servidor também as ignora)
+  document.querySelectorAll(".module-block").forEach(block => {
+    const toggle = block.querySelector(".access-toggle"), perms = block.querySelector(".module-perms");
+    const sync = () => { perms.classList.toggle("opacity-50", !toggle.checked);
+      perms.querySelectorAll("input[type=checkbox]").forEach(i => { i.disabled = !toggle.checked; if (!toggle.checked) i.checked = false; }); };
+    toggle.addEventListener("change", sync);
+  });
+</script>
 {% endblock %}

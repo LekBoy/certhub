@@ -51,9 +51,12 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'portal.middleware.ForcePasswordChangeMiddleware',
+    'portal.middleware.ModuleAccessMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+AUTHENTICATION_BACKENDS = ['portal.backends.ModuleAccessBackend']
 
 ROOT_URLCONF = 'config.urls'
 
@@ -67,6 +70,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'portal.context.navigation',
             ],
         },
     },
@@ -144,3 +148,9 @@ SIGN_ALLOWED_EXTENSIONS = {".dll", ".exe", ".msi", ".cab", ".nupkg", ".msix", ".
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"
+
+# Testes mais rápidos: hash de palavras-passe barato (só quando se corre `manage.py test`)
+import sys  # noqa: E402
+
+if "test" in sys.argv:
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

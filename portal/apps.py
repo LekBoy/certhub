@@ -7,6 +7,8 @@ class PortalConfig(AppConfig):
     name = "portal"
 
     def ready(self):
+        from .certhub_module import register_all
         from .permissions import ensure_default_groups
 
+        register_all()
         post_migrate.connect(ensure_default_groups, sender=self)

@@ -1,6 +1,14 @@
-# certhub
+# InfraHub
 
-Inventário de certificados das VMs + **serviço de assinatura de código** (SignTool).
+Plataforma de infraestrutura da BCA, feita de **módulos**. Cada módulo tem o seu menu, as suas páginas e as suas permissões.
+Hoje há um módulo, o **CertHub** (certificados: assinatura de código e inventário). Como funcionam o acesso por módulo e
+como criar novos módulos: [docs/modules.md](docs/modules.md).
+
+- **Plataforma**: login, utilizadores, grupos, módulos (ligar/desligar), auditoria.
+- **Módulo CertHub** (`/certhub/…`): assinatura de código com o SignTool, inventário de certificados, histórico, tokens de API.
+- **Acesso em duas camadas**: primeiro o *acesso ao módulo* (sim/não, por grupo) e, dentro do módulo, as permissões finas.
+  Sem acesso ao módulo, as permissões dele não têm efeito.
+- A API de assinatura mantém-se em `POST /api/sign/` (contrato estável para os pipelines).
 
 ## Assinatura de código (sem entregar o .pfx)
 
@@ -14,36 +22,36 @@ A private key **nunca sai do servidor de assinatura**.
 4. Valores iniciais por variável de ambiente (depois editáveis em *Definições*): `SIGNTOOL_PATH`, `SIGN_TIMESTAMP_URL` (opcional), `SIGN_VERIFY`, `SIGN_MAX_UPLOAD_MB`.
 
 **Uso:**
-- Web: `/sign/` (login). 
-- Pipeline: `curl -H "Authorization: Bearer $TOKEN" -F file=@Foo.dll -F certificate=1 -o Foo.dll.signed https://certhub/api/sign/`
+- Web: `/certhub/sign/` (login).
+- Pipeline: `curl -H "Authorization: Bearer $INFRAHUB_TOKEN" -F file=@Foo.dll -F certificate=1 -o Foo.dll.signed https://infrahub.empresa.pt/api/sign/`
 
 Cada pedido fica auditado (utilizador, ficheiro, SHA-256 antes/depois, certificado). Servir sempre atrás de HTTPS.
 
 ## Inventário de certificados (só informação)
 
-Em *Inventário* carrega-se qualquer certificado (`.pfx/.p12`, `.crt/.cer/.der`, `.pem` com um ou vários, `.p7b`), vários de uma vez.
+No módulo CertHub, em *Inventário* (`/certhub/inventory/`), carrega-se qualquer certificado (`.pfx/.p12`, `.crt/.cer/.der`, `.pem` com um ou vários, `.p7b`), vários de uma vez.
 O CertHub lê titular, emissor, validade, domínios (SAN), tipo (TLS, Code Signing, cliente, CA…), chave, fingerprints e se é wildcard,
 e guarda **só essa informação**: os ficheiros, as chaves privadas e as palavras-passe são lidos em memória e nunca guardados.
 Cada certificado tem um responsável, notas e uma lista de **utilizações** (servidor, IP, porta, aplicação e ambiente; pode haver várias), e a pesquisa e os filtros também procuram por IP, servidor e aplicação. Há pesquisa, filtros (tipo, estado, servidor), exportação CSV,
 avisos de expiração (≤ 30 dias) no painel e o mesmo certificado carregado outra vez só atualiza o registo.
-Permissões próprias (*Ver o inventário* / *Gerir o inventário*) na matriz dos grupos.
+Permissões próprias (*Ver o inventário* / *Gerir o inventário*), dentro do módulo, na matriz dos grupos.
 
 ## Interface e administração
 
 UI em Tailwind CSS, com a identidade da BCA: azul `#193D79` e vermelho `#CC1519` (do logótipo). As cores estão em `tailwind.config.js` (`brand` e `accent`) e o logótipo e o favicon em `static/img/`; para mudar a identidade basta alterar esses ficheiros e recompilar o CSS. O CSS compilado vai commitado em `static/css/app.css`; só é preciso Node para o alterar:
 `npm install && npm run build:css` (ou `npm run watch:css`).
 
-Tudo se gere **dentro do CertHub** (menu «Administração»), segundo as permissões de cada grupo:
+Tudo se gere **dentro do InfraHub** (menu «Administração» e secção do módulo), segundo as permissões de cada grupo:
 
 - **Utilizadores** – criar (palavra-passe temporária, trocada no primeiro acesso), editar, ativar/desativar, repor palavra-passe, apagar (se sem histórico).
-- **Grupos** – criar/editar/apagar com uma matriz de permissões: assinar, ver histórico de todos, ver auditoria, gerir certificados, utilizadores, grupos, tokens e definições. Grupos base: *Assinantes*, *Auditores*, *Administradores* (editáveis).
+- **Grupos** – criar/editar/apagar. Um cartão por módulo com o **«Acesso ao módulo»** e, por baixo, as permissões do módulo; mais uma secção «Plataforma» (utilizadores, grupos, módulos, auditoria). Grupos base: *Assinantes*, *Auditores*, *Administradores* (editáveis).
 - **Certificados** – registar o `.cer` público **ou ler um `.pfx`** (com a palavra-passe: lê o titular, emissor, série, chave e validade e regista só os dados públicos; o ficheiro e a palavra-passe não são guardados), escolher o **método de assinatura** (store do Windows, DigiCert KeyLocker, comando personalizado), grupos com acesso, limite anual, datas de subscrição/renovação, notas e botão «Testar assinatura».
 - **Definições** – SignTool, timestamp, verificação, limites de upload, extensões, validade dos tokens, bloqueio ao atingir o limite.
 - **Auditoria** – quem fez o quê.
 - Proteções: não é possível ficar sem nenhum utilizador ativo capaz de gerir utilizadores; ninguém dá permissões que não tem; só um superadministrador altera outro.
 - O Django admin (`/admin/`) fica só para superadministradores (emergência).
 
-O primeiro utilizador cria-se com `python manage.py createsuperuser`; depois já se gere tudo no CertHub.
+O primeiro utilizador cria-se com `python manage.py createsuperuser`; depois já se gere tudo no InfraHub.
 Segredos (API keys, palavras-passe) ficam em variáveis de ambiente do servidor, nunca na base de dados.
 
 Produção: `pip install -r requirements.txt`, `python manage.py migrate`, `collectstatic` (servido por WhiteNoise), `DJANGO_DEBUG=0`.

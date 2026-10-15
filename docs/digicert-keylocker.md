@@ -1,4 +1,4 @@
-# DigiCert KeyLocker no CertHub
+# DigiCert KeyLocker no InfraHub (módulo CertHub)
 
 A chave privada fica num HSM na cloud da DigiCert e nunca sai de lá. O servidor de assinatura só precisa do
 **SignTool** (Windows SDK) e do cliente **`smctl`** da DigiCert, que liga o SignTool ao KeyLocker.
@@ -14,7 +14,7 @@ se estão definidas). Os nomes são os da documentação do `smctl`, a confirmar
 ```powershell
 $env:SM_HOST                 = "<URL indicado pela DigiCert>"
 $env:SM_API_KEY              = "<api key>"
-$env:SM_CLIENT_CERT_FILE     = "C:\certhub\secrets\client-auth.p12"
+$env:SM_CLIENT_CERT_FILE     = "C:\infrahub\secrets\client-auth.p12"
 $env:SM_CLIENT_CERT_PASSWORD = "<palavra-passe do .p12>"
 ```
 

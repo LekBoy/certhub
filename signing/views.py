@@ -50,6 +50,10 @@ def _token_user(request):
     ).first()
     if not token or not token.valid or not token.user.is_active or not token.user.has_perm("signing.can_sign"):
         return None
+    from portal import modules
+
+    if not modules.user_can_access(token.user, modules.get("certhub")):  # sem acesso ao módulo (ou desligado)
+        return None
     token.last_used = timezone.now()
     token.save(update_fields=["last_used"])
     return token.user

@@ -6,7 +6,8 @@ from django.contrib.auth.models import Group, User
 from signing.certinfo import CertificateError, parse_pkcs12, parse_public_certificate
 from signing.models import SigningCertificate, SiteSettings
 
-from .permissions import PERMISSION_GROUPS, permission_objects
+from . import modules
+from .permissions import PLATFORM_PERMISSION_GROUPS, all_permission_codes, permission_objects
 
 INPUT = "block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
 CHECK = "h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
@@ -37,7 +38,16 @@ class TailwindMixin:
 
 
 def actor_perms(actor) -> set[str]:
-    return actor.get_all_permissions()
+    """Permissões efetivas (respeitando o acesso aos módulos)."""
+    return {p for p in actor.get_all_permissions() if actor.has_perm(p)}
+
+
+def permission_labels() -> list[tuple[str, str]]:
+    items = [(c, l) for _, rows in PLATFORM_PERMISSION_GROUPS for c, l, _ in rows]
+    for m in modules.all_modules():
+        items.append((m.access_perm, f"Acesso ao módulo {m.name}"))
+        items += [(c, l) for _, rows in m.permission_groups for c, l, _ in rows]
+    return items
 
 
 class PasswordForm(TailwindMixin, PasswordChangeForm):
@@ -99,7 +109,7 @@ class GroupForm(TailwindMixin, forms.ModelForm):
     def __init__(self, *args, actor, **kwargs):
         super().__init__(*args, **kwargs)
         self.actor = actor
-        self.fields["perms"].choices = [(c, l) for _, items in PERMISSION_GROUPS for c, l, _ in items]
+        self.fields["perms"].choices = permission_labels()
         if self.instance.pk:
             self.fields["perms"].initial = [f"{p.content_type.app_label}.{p.codename}"
                                             for p in self.instance.permissions.select_related("content_type")]
@@ -112,6 +122,10 @@ class GroupForm(TailwindMixin, forms.ModelForm):
             extra = perms - have - actor_perms(self.actor)
             if extra:
                 raise forms.ValidationError("Não pode dar permissões que você próprio não tem.")
+        # sem acesso a um módulo, as permissões desse módulo não fazem sentido: não ficam guardadas
+        for m in modules.all_modules():
+            if m.access_perm not in perms:
+                perms -= set(m.permission_codes)
         return perms
 
     def save(self, commit=True):

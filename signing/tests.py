@@ -101,7 +101,7 @@ class SignApiTests(TestCase):
         site.verify_after_sign = False
         site.save()
         self.user = User.objects.create_user("dev", password="x")
-        self.user.user_permissions.add(Permission.objects.get(codename="can_sign"))
+        self.user.user_permissions.add(*Permission.objects.filter(codename__in=["can_sign", "access_certhub"]))
         self.token = SigningToken(user=self.user, name="ci")
         self.raw = self.token.set_new_token()
         self.token.save()
@@ -172,9 +172,9 @@ class SignApiTests(TestCase):
         self.assertEqual(SigningRequest.objects.get().status, "failed")
 
     def test_web_page_requires_login(self):
-        self.assertEqual(self.client.get("/sign/").status_code, 302)
+        self.assertEqual(self.client.get("/certhub/sign/").status_code, 302)
         self.client.force_login(self.user)
-        self.assertEqual(self.client.get("/sign/").status_code, 200)
+        self.assertEqual(self.client.get("/certhub/sign/").status_code, 200)
 
 
 class SigningMethodTests(TestCase):
@@ -230,7 +230,7 @@ class AccessAndLimitTests(TestCase):
         s.save()
         self.group = Group.objects.create(name="PAD")
         self.user = User.objects.create_user("dev", password="x")
-        self.user.user_permissions.add(Permission.objects.get(codename="can_sign"))
+        self.user.user_permissions.add(*Permission.objects.filter(codename__in=["can_sign", "access_certhub"]))
         self.cert = SigningCertificate.objects.create(
             name="c", thumbprint="CD" * 20, subject="CN=x", not_before=timezone.now(),
             not_after=timezone.now() + datetime.timedelta(days=30))

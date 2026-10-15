@@ -9,6 +9,7 @@ from django.contrib.auth.views import PasswordChangeView
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
@@ -18,7 +19,8 @@ from signing.models import SigningToken, SiteSettings
 from .audit import audit
 from .forms import GroupForm, PasswordForm, SiteSettingsForm, UserForm
 from .models import AuditEvent, UserProfile
-from .permissions import PERMISSION_GROUPS, has_admin, perm_required
+from . import modules
+from .permissions import PLATFORM_PERMISSION_GROUPS, has_admin, perm_required
 
 
 class Lockout(Exception):
@@ -159,8 +161,12 @@ def groups(request):
 
 
 def _group_form_context(form, group):
-    return {"form": form, "group": group, "permission_groups": PERMISSION_GROUPS,
-            "selected": set(form["perms"].value() or [])}
+    selected = set(form["perms"].value() or [])
+    return {
+        "form": form, "group": group, "selected": selected,
+        "platform_groups": PLATFORM_PERMISSION_GROUPS,
+        "module_blocks": [{"module": m, "has_access": m.access_perm in selected} for m in modules.all_modules()],
+    }
 
 
 @perm_required("portal.manage_groups")
@@ -284,3 +290,35 @@ class PasswordChange(PasswordChangeView):
             profile.save(update_fields=["must_change_password"])
         messages.success(self.request, "Palavra-passe alterada.")
         return response
+
+
+# ---------------------------------------------------------------------- módulos
+@perm_required("portal.manage_modules")
+def modules_page(request):
+    from django.contrib.auth import get_user_model
+
+    active_users = list(get_user_model().objects.filter(is_active=True))
+    rows = []
+    for m in modules.all_modules():
+        rows.append({
+            "module": m, "enabled": modules.is_enabled(m),
+            "n_users": sum(modules.user_can_access(u, m) for u in active_users),
+            "groups": Group.objects.filter(permissions__codename=m.access_perm.split(".")[1]).order_by("name"),
+        })
+    return render(request, "portal/modules.html", {"rows": rows})
+
+
+@perm_required("portal.manage_modules")
+@require_POST
+def module_toggle(request, key):
+    from .models import ModuleState
+
+    module = modules.get(key)
+    if module is None:
+        raise Http404
+    state, _ = ModuleState.objects.get_or_create(key=key)
+    state.enabled = not state.enabled
+    state.save()
+    audit(request, "module_enabled" if state.enabled else "module_disabled", module.name)
+    messages.success(request, f"Módulo «{module.name}» {'ligado' if state.enabled else 'desligado'}.")
+    return redirect("portal:modules")

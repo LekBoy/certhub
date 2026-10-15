@@ -2,7 +2,7 @@
 <html lang="pt" class="h-full bg-slate-50">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Entrar · CertHub</title>
+  <title>Entrar · InfraHub</title>
   <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
@@ -12,7 +12,7 @@
     <div class="absolute inset-y-0 left-0 w-2 bg-accent"></div>
     <div class="flex items-center gap-4 text-white">
       <img src="{% static 'img/bca-logo.png' %}" alt="BCA" class="h-20 w-auto rounded-sm">
-      <span class="text-xl font-semibold tracking-tight">CertHub</span>
+      <span class="text-xl font-semibold tracking-tight">InfraHub</span>
     </div>
     <div>
       <h2 class="text-3xl font-semibold leading-tight text-white">Certificados centralizados.<br>Código assinado sem partilhar a chave.</h2>
@@ -24,7 +24,7 @@
     <div class="w-full max-w-sm">
       <img src="{% static 'img/bca-logo.png' %}" alt="BCA" class="mb-8 h-14 w-auto rounded-sm lg:hidden">
       <h1 class="text-2xl font-semibold text-slate-900">Entrar</h1>
-      <p class="mt-1 text-sm text-slate-500">Use a sua conta CertHub.</p>
+      <p class="mt-1 text-sm text-slate-500">Use a sua conta InfraHub.</p>
       <form method="post" class="mt-8 space-y-5">
         {% csrf_token %}
         {% if form.errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">Utilizador ou palavra-passe incorretos.</div>{% endif %}

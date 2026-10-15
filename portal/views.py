@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from signing.models import SigningCertificate, SigningRequest, SigningToken, SiteSettings
 
+from . import modules
 from .audit import audit
 
 
@@ -22,30 +23,12 @@ def _visible_requests(user):
 
 @login_required
 def dashboard(request):
-    now = timezone.now()
-    certs = list(SigningCertificate.objects.all())
-    reqs = _visible_requests(request.user)
-    month = reqs.filter(created_at__gte=now - timedelta(days=30))
-    stats = {
-        "active": sum(c.status == "ok" for c in certs),
-        "expiring": sum(c.status == "expiring" for c in certs),
-        "expired": sum(c.status == "expired" for c in certs),
-        "signed_30d": month.filter(status=SigningRequest.Status.OK).count(),
-        "failed_30d": month.filter(status=SigningRequest.Status.FAILED).count(),
-    }
-    attention = sorted((c for c in certs if c.is_active and c.attention or c.status == "expired"),
-                       key=lambda c: c.not_after)
-    inv = None
-    if request.user.has_perm("inventory.view_inventorycertificate"):
-        from inventory.models import ALERT_DAYS, InventoryCertificate
-
-        allc = InventoryCertificate.objects.all()
-        soon = allc.filter(not_after__gt=now, not_after__lte=now + timedelta(days=ALERT_DAYS))
-        inv = {"total": allc.count(), "expiring": soon.count(), "expired": allc.filter(not_after__lte=now).count(),
-               "next": allc.filter(not_after__gt=now).order_by("not_after")[:5]}
-    return render(request, "portal/dashboard.html", {
-        "stats": stats, "attention": attention, "recent": reqs[:8], "total_certs": len(certs), "inv": inv,
-    })
+    """Painel da plataforma: um bloco por módulo a que o utilizador tem acesso."""
+    widgets = []
+    for module in modules.accessible_modules(request.user):
+        if module.dashboard and module.dashboard_template:
+            widgets.append({"module": module, "template": module.dashboard_template, "d": module.dashboard(request)})
+    return render(request, "portal/dashboard.html", {"widgets": widgets})
 
 
 @login_required
@@ -87,7 +70,7 @@ def tokens(request):
             audit(request, "token_created", f"{name} ({request.user.username})")
     return render(request, "portal/tokens.html", {
         "tokens": SigningToken.objects.filter(user=request.user).order_by("-created_at"),
-        "raw_token": raw, "api_url": request.build_absolute_uri(reverse("signing:api_sign")),
+        "raw_token": raw, "api_url": request.build_absolute_uri(reverse("api_sign")),
         "valid_days": site.token_valid_days,
     })
 

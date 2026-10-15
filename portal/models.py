@@ -9,13 +9,15 @@ class PortalPermissions(models.Model):
         managed = False
         default_permissions = ()
         permissions = [
+            ("access_certhub", "Aceder ao módulo CertHub"),
+            ("manage_modules", "Gerir módulos"),
             ("view_all_history", "Ver o histórico de assinaturas de todos"),
             ("view_audit", "Ver o registo de auditoria"),
             ("manage_certificates", "Gerir certificados"),
             ("manage_users", "Gerir utilizadores"),
             ("manage_groups", "Gerir grupos e permissões"),
             ("manage_tokens", "Gerir tokens de todos os utilizadores"),
-            ("manage_settings", "Gerir definições da plataforma"),
+            ("manage_settings", "Gerir definições do CertHub"),
         ]
 
 
@@ -42,3 +44,11 @@ class AuditEvent(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+
+
+class ModuleState(models.Model):
+    """Módulos desligados pelo administrador. Sem registo = ligado."""
+
+    key = models.CharField(max_length=64, unique=True)
+    enabled = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)

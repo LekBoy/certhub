@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Testa a assinatura com o MESMO comando que o CertHub usa, num ficheiro .ps1 descartável.
+  Testa a assinatura com o MESMO comando que o InfraHub (módulo CertHub) usa, num ficheiro .ps1 descartável.
   Correr no servidor de assinatura, com a conta que corre a app (para validar o acesso à key).
 
 .EXAMPLE
@@ -19,8 +19,8 @@ param(
 $ErrorActionPreference = "Stop"
 if (-not (Test-Path $SignTool)) { throw "SignTool não encontrado em $SignTool (instale o Windows SDK e ajuste -SignTool / SIGNTOOL_PATH)." }
 
-$file = Join-Path ([IO.Path]::GetTempPath()) "certhub-test-$([guid]::NewGuid().ToString('N')).ps1"
-"Write-Output 'certhub test'" | Set-Content $file
+$file = Join-Path ([IO.Path]::GetTempPath()) "infrahub-test-$([guid]::NewGuid().ToString('N')).ps1"
+"Write-Output 'infrahub test'" | Set-Content $file
 
 try {
     $signArgs = @("sign", "/fd", "SHA256", "/sha1", $Thumbprint, "/s", $Store)

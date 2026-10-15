@@ -1,5 +1,5 @@
 {
-  "name": "certhub-ui",
+  "name": "infrahub-ui",
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i assets/app.css -o static/css/app.css --minify",

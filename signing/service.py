@@ -30,7 +30,7 @@ def sign_upload(uploaded, user, certificate: SigningCertificate, via_api: bool):
     if site.block_at_limit and certificate.limit_status == "reached":
         raise LimitReached("O limite anual de assinaturas deste certificado foi atingido.")
     name = validate_upload(uploaded, site)
-    with tempfile.TemporaryDirectory(prefix="certhub-sign-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="infrahub-sign-") as tmp:
         path = Path(tmp) / name
         with open(path, "wb") as f:
             for chunk in uploaded.chunks():
@@ -53,7 +53,7 @@ def sign_upload(uploaded, user, certificate: SigningCertificate, via_api: bool):
 
 def test_signing(certificate: SigningCertificate) -> str:
     """Assina um ficheiro de teste descartável. Não conta para o limite nem entra no histórico."""
-    with tempfile.TemporaryDirectory(prefix="certhub-test-") as tmp:
-        path = Path(tmp) / "certhub-test.ps1"
-        path.write_text("Write-Output 'certhub test'\n")
+    with tempfile.TemporaryDirectory(prefix="infrahub-test-") as tmp:
+        path = Path(tmp) / "infrahub-test.ps1"
+        path.write_text("Write-Output 'infrahub test'\n")
         return signer.sign_file(path, certificate) or "OK"

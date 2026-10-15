@@ -42,35 +42,35 @@ class PortalTests(TestCase):
         make_cert("soon", 10)
         self.client.force_login(self.signer)
         r = self.client.get("/")
-        self.assertEqual(r.context["stats"]["expiring"], 1)
+        self.assertEqual(r.context["widgets"][0]["d"]["stats"]["expiring"], 1)
         self.assertContains(r, "soon")
 
     def test_history_scoped_to_own_requests(self):
         self.client.force_login(self.signer)
-        names = [r.filename for r in self.client.get("/history/").context["page"]]
+        names = [r.filename for r in self.client.get("/certhub/history/").context["page"]]
         self.assertEqual(names, ["ana.dll"])
 
     def test_auditor_sees_all(self):
         self.client.force_login(self.auditor)
-        self.assertEqual(len(self.client.get("/history/").context["page"]), 2)
+        self.assertEqual(len(self.client.get("/certhub/history/").context["page"]), 2)
 
     def test_history_filters(self):
         self.client.force_login(self.auditor)
-        self.assertEqual(len(self.client.get("/history/?q=rui").context["page"]), 1)
-        self.assertEqual(len(self.client.get("/history/?status=failed").context["page"]), 0)
+        self.assertEqual(len(self.client.get("/certhub/history/?q=rui").context["page"]), 1)
+        self.assertEqual(len(self.client.get("/certhub/history/?status=failed").context["page"]), 0)
 
     def test_tokens_require_signer_permission(self):
         self.client.force_login(self.other)
-        self.assertEqual(self.client.get("/tokens/").status_code, 403)
+        self.assertEqual(self.client.get("/certhub/tokens/").status_code, 403)
 
     def test_create_and_revoke_token(self):
         self.client.force_login(self.signer)
-        r = self.client.post("/tokens/", {"name": "pipeline"})
+        r = self.client.post("/certhub/tokens/", {"name": "pipeline"})
         raw = r.context["raw_token"]
         token = SigningToken.objects.get()
         self.assertEqual(token.token_hash, SigningToken.hash_token(raw))
-        self.assertNotContains(self.client.get("/tokens/"), raw)  # só aparece uma vez
-        self.client.post(f"/tokens/{token.pk}/revoke/")
+        self.assertNotContains(self.client.get("/certhub/tokens/"), raw)  # só aparece uma vez
+        self.client.post(f"/certhub/tokens/{token.pk}/revoke/")
         token.refresh_from_db()
         self.assertFalse(token.valid)
 
@@ -78,11 +78,12 @@ class PortalTests(TestCase):
         t = SigningToken(user=self.signer, name="x")
         t.set_new_token()
         t.save()
+        self.other.groups.add(Group.objects.get(name="Assinantes"))  # com acesso ao módulo, mas o token não é dele
         self.client.force_login(self.other)
-        self.assertEqual(self.client.post(f"/tokens/{t.pk}/revoke/").status_code, 404)
+        self.assertEqual(self.client.post(f"/certhub/tokens/{t.pk}/revoke/").status_code, 404)
 
     def test_sign_page_json_error(self):
         self.client.force_login(self.signer)
-        r = self.client.post("/sign/", {}, headers={"X-Requested-With": "fetch"})
+        r = self.client.post("/certhub/sign/", {}, headers={"X-Requested-With": "fetch"})
         self.assertEqual(r.status_code, 400)
         self.assertIn("error", r.json())

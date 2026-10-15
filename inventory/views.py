@@ -159,13 +159,17 @@ def _process(request, files, data, usages):
             results.append({**base, "status": "error", "message": str(exc)})
             continue
         file_items = []
-        for cert in certs:
-            info = parsing.describe(cert)
-            if info["is_ca"] and not data.get("include_ca"):
+        infos = [parsing.describe(c) for c in certs]
+        only_ca = all(i["is_ca"] for i in infos)  # ficheiro só com CAs: foi carregado de propósito, entra sempre
+        for info in infos:
+            if info["is_ca"] and not data.get("include_ca") and not only_ca:
                 file_items.append({"status": "skipped", "name": info["name"], "cert": None,
                                    "message": "Certificado de CA ignorado (marque «Incluir certificados de CA»)."})
                 continue
-            file_items.append(_save(request, info, f.name, fmt, had_key, meta, usages))
+            item = _save(request, info, f.name, fmt, had_key, meta, usages)
+            if only_ca and not data.get("include_ca") and item["status"] in ("added", "updated"):
+                item["message"] = "Importado como CA (o ficheiro só tinha certificados de CA). "
+            file_items.append(item)
         for item in file_items:
             results.append({"filename": f.name, **item, "had_key": had_key})
     audit(request, "inventory_uploaded", f"{len(files)} ficheiro(s)",

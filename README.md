@@ -69,3 +69,7 @@ Com um certificado emitido pela CA interna não é preciso (nem útil) usar um T
 Guia completo com CA interna (AD CS) e scripts PowerShell: [docs/internal-ca-setup.md](docs/internal-ca-setup.md).
 
 Guia do DigiCert KeyLocker: [docs/digicert-keylocker.md](docs/digicert-keylocker.md).
+
+## Notificações por e-mail
+
+Avisos de certificados a expirar para o Outlook (SMTP ou Microsoft Graph), agendados com `python manage.py send_expiry_alerts`. Ver [docs/notificacoes.md](docs/notificacoes.md).

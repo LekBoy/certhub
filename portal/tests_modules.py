@@ -289,7 +289,7 @@ class UpgradeTests(TestCase):
         self.assertTrue(custom.permissions.filter(codename="access_certhub").exists())
         self.assertFalse(unrelated.permissions.filter(codename="access_certhub").exists())
         self.assertTrue(direct.user_permissions.filter(codename="access_certhub").exists())
-        self.assertEqual(SiteSettings.load().default_groups_version, 3)
+        self.assertEqual(SiteSettings.load().default_groups_version, 4)
 
     def test_default_groups_receive_new_permissions_without_losing_any(self):
         assinantes = Group.objects.get(name="Assinantes")

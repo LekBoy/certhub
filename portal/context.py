@@ -7,6 +7,7 @@ PLATFORM_ADMIN_NAV = [
     ("Utilizadores", "portal:users", "users", "portal.manage_users"),
     ("Grupos", "portal:groups", "shield", "portal.manage_groups"),
     ("Módulos", "portal:modules", "puzzle", "portal.manage_modules"),
+    ("Notificações", "portal:notifications", "mail", "portal.manage_notifications"),
     ("Auditoria", "portal:audit", "list", "portal.view_audit"),
 ]
 

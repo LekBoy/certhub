@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from . import modules
-from .modules import Module, NavItem
+from .modules import ExpiryItem, Module, NavItem
 
 CERTHUB = Module(
     key="certhub",
@@ -77,6 +77,25 @@ def certhub_dashboard(request):
 
 
 CERTHUB.dashboard = certhub_dashboard
+
+
+def certhub_expiry_items():
+    """Certificados que expiram: os de assinatura ativos e todos os do inventário."""
+    from inventory.models import InventoryCertificate
+    from signing.models import SigningCertificate
+
+    items = [
+        ExpiryItem(f"signing:{c.pk}", "CertHub", "Assinatura de código", c.name, c.not_after,
+                   c.get_method_display(), "portal:certificate_edit", (c.pk,))
+        for c in SigningCertificate.objects.filter(is_active=True)
+    ]
+    for c in InventoryCertificate.objects.prefetch_related("usages"):
+        items.append(ExpiryItem(f"inventory:{c.pk}", "CertHub", "Inventário", c.name, c.not_after,
+                                c.usage_summary, "inventory:detail", (c.pk,)))
+    return items
+
+
+CERTHUB.expiry_items = certhub_expiry_items
 
 
 def register_all():

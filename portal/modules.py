@@ -13,6 +13,19 @@ from typing import Callable
 
 
 @dataclass(frozen=True)
+class ExpiryItem:
+    """Algo que expira e deve gerar avisos (certificados, licenças, domínios…)."""
+    key: str  # único e estável, ex.: "inventory:12"
+    module: str  # nome do módulo, ex.: "CertHub"
+    area: str  # ex.: "Inventário"
+    name: str
+    expires_at: object  # datetime com timezone
+    detail: str = ""  # ex.: onde é usado
+    url_name: str = ""
+    url_args: tuple = ()
+
+
+@dataclass(frozen=True)
 class NavItem:
     label: str
     url_name: str
@@ -33,6 +46,7 @@ class Module:
     permission_groups: list = field(default_factory=list)  # [(título, [(código, rótulo, descrição)])]
     dashboard: Callable | None = None  # request -> dict (contexto do widget) ou None
     dashboard_template: str | None = None
+    expiry_items: Callable | None = None  # () -> [ExpiryItem]: o que pode expirar (alimenta as notificações)
 
     @property
     def permission_codes(self) -> list[str]:

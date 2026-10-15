@@ -20,7 +20,7 @@ class UploadForm(TailwindMixin, forms.Form):
                                    widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "new-password"}),
                                    help_text="Usada para todos os .pfx deste envio. Não é guardada.")
     include_ca = forms.BooleanField(label="Incluir certificados de CA / cadeia", required=False,
-                                    help_text="Por omissão só entram os certificados finais (servidor, cliente, etc.).")
+                                    help_text="Num ficheiro com a cadeia completa, só entra o certificado final (servidor, cliente…). Um ficheiro que só tenha CAs entra sempre.")
     owner = forms.CharField(label="Responsável", max_length=255, required=False)
     notes = forms.CharField(label="Notas", required=False, widget=forms.Textarea(attrs={"rows": 3}))
 

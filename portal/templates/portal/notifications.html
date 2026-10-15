@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Notificações{% endblock %}
+{% block heading %}Notificações por e-mail{% endblock %}
+{% block content %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" class="card flex flex-col gap-5 p-6 lg:col-span-2">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">{{ form.non_field_errors }}</div>{% endif %}
+    <h2 class="font-semibold text-slate-900">Avisos</h2>
+    {% include "_field.html" with field=form.enabled %}
+    {% include "_field.html" with field=form.recipients %}
+    <div class="grid gap-5 sm:grid-cols-2">
+      {% include "_field.html" with field=form.thresholds %}
+      {% include "_field.html" with field=form.base_url %}
+    </div>
+    {% include "_field.html" with field=form.notify_expired %}
+    <h2 class="border-t border-slate-100 pt-5 font-semibold text-slate-900">Envio (Outlook / Microsoft 365)</h2>
+    {% include "_field.html" with field=form.transport %}
+    <div class="grid gap-5 sm:grid-cols-2">
+      {% include "_field.html" with field=form.from_address %}
+      {% include "_field.html" with field=form.from_name %}
+    </div>
+    <p class="text-xs font-medium uppercase tracking-wide text-slate-400">SMTP</p>
+    {% include "_field.html" with field=form.smtp_host %}
+    <div class="grid gap-5 sm:grid-cols-3">
+      {% include "_field.html" with field=form.smtp_port %}
+      {% include "_field.html" with field=form.smtp_security %}
+      {% include "_field.html" with field=form.smtp_username %}
+    </div>
+    <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Microsoft Graph</p>
+    <div class="grid gap-5 sm:grid-cols-2">
+      {% include "_field.html" with field=form.graph_tenant_id %}
+      {% include "_field.html" with field=form.graph_client_id %}
+    </div>
+    <div class="flex justify-end"><button class="btn-primary">Guardar</button></div>
+  </form>
+
+  <div class="space-y-6">
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Ações</h2>
+      <p class="mt-1 text-xs text-slate-500">Guarde primeiro as alterações; o teste usa o que está guardado.</p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <form method="post" action="{% url 'portal:notifications_test' %}">{% csrf_token %}<button class="btn-secondary">Enviar e-mail de teste</button></form>
+        <form method="post" action="{% url 'portal:notifications_run' %}">{% csrf_token %}<button class="btn-secondary">Verificar agora</button></form>
+      </div>
+      {% if cfg.last_run_at %}<p class="mt-3 text-xs text-slate-500">Última execução: {{ cfg.last_run_at|date:"d/m/Y H:i" }} — {{ cfg.last_run_summary }}</p>{% endif %}
+      <p class="mt-3 text-xs text-slate-500">Envio diário automático: agende <code>python manage.py send_expiry_alerts</code> (ver docs/notificacoes.md).</p>
+    </section>
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Segredos do servidor</h2>
+      <p class="mt-1 text-xs text-slate-500">Ficam em variáveis de ambiente, nunca na base de dados.</p>
+      <ul class="mt-3 divide-y divide-slate-100 text-sm">
+        {% for name, is_set in env %}
+        <li class="flex items-center justify-between py-2"><code class="text-xs">{{ name }}</code>{% if is_set %}<span class="badge-green">Definida</span>{% else %}<span class="badge-slate">Não definida</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Por avisar ({{ pending|length }})</h2>
+      <ul class="mt-3 divide-y divide-slate-100 text-sm">
+        {% for a in pending %}<li class="py-2">{{ a.item.name }} <span class="text-xs text-slate-500">— {% if a.days_left < 0 %}expirou há {{ a.days_left|cut:"-" }} dia(s){% else %}{{ a.days_left }} dia(s){% endif %}</span></li>
+        {% empty %}<li class="py-2 text-slate-500">Nada pendente.</li>{% endfor %}
+      </ul>
+    </section>
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Últimos envios</h2>
+      <ul class="mt-3 divide-y divide-slate-100 text-sm">
+        {% for l in log %}<li class="py-2"><span class="{% if l.ok %}text-emerald-700{% else %}text-red-700{% endif %}">{% if l.ok %}✓{% else %}✗{% endif %}</span> {{ l.item_name|default:"Teste" }} <span class="text-xs text-slate-500">{{ l.created_at|date:"d/m H:i" }}{% if l.error %} — {{ l.error|truncatechars:80 }}{% endif %}</span></li>
+        {% empty %}<li class="py-2 text-slate-500">Ainda sem envios.</li>{% endfor %}
+      </ul>
+    </section>
+  </div>
+</div>
+{% endblock %}

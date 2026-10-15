@@ -171,6 +171,21 @@ class InventoryViews(TestCase):
         r = self.upload(("bundle.pem", blob), include_ca="on")
         self.assertEqual(InventoryCertificate.objects.count(), 2)
 
+    def test_file_with_only_ca_certificates_is_imported_without_the_option(self):
+        ca, _ = build("Sectigo Public Server Authentication CA OV R36", eku=None, ca=True)
+        r = self.upload(("sectigo.crt", der(ca)))
+        self.assertEqual((r.context["n_added"], r.context["n_skipped"]), (1, 0))
+        row = InventoryCertificate.objects.get()
+        self.assertEqual((row.cert_type, row.is_ca), ("ca", True))
+        self.assertContains(r, "Importado como CA")
+
+    def test_chain_still_skips_the_ca_by_default(self):
+        leaf, _ = build("leaf2.pt")
+        ca, _ = build("Intermediate", eku=None, ca=True)
+        r = self.upload(("chain.pem", pem(leaf) + pem(ca)))
+        self.assertEqual((r.context["n_added"], r.context["n_skipped"]), (1, 1))
+        self.assertEqual(InventoryCertificate.objects.get().name, "leaf2.pt")
+
     def test_reupload_updates_and_keeps_notes(self):
         a, _ = build("a.pt")
         self.upload(("a.crt", der(a)))

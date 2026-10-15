@@ -17,9 +17,9 @@ from django.views.decorators.http import require_POST
 from signing.models import SigningToken, SiteSettings
 
 from .audit import audit
-from .forms import GroupForm, PasswordForm, SiteSettingsForm, UserForm
-from .models import AuditEvent, UserProfile
-from . import modules
+from .forms import GroupForm, NotificationSettingsForm, PasswordForm, SiteSettingsForm, UserForm
+from .models import AuditEvent, NotificationLog, NotificationSettings, UserProfile
+from . import modules, notify
 from .permissions import PLATFORM_PERMISSION_GROUPS, has_admin, perm_required
 
 
@@ -300,6 +300,54 @@ def settings_page(request):
         return redirect("portal:settings")
     env = [(name, bool(os.environ.get(name))) for name in ENV_VARS]
     return render(request, "portal/settings.html", {"form": form, "env": env})
+
+
+# ------------------------------------------------------------------ notificações
+NOTIFY_ENV_VARS = [notify.SMTP_PASSWORD_ENV, notify.GRAPH_SECRET_ENV]
+
+
+@perm_required("portal.manage_notifications")
+def notifications(request):
+    cfg = NotificationSettings.load()
+    form = NotificationSettingsForm(request.POST or None, instance=cfg)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        audit(request, "notifications_updated", "notificações", ", ".join(sorted(form.changed_data)))
+        messages.success(request, "Notificações guardadas.")
+        return redirect("portal:notifications")
+    env = [(name, bool(os.environ.get(name))) for name in NOTIFY_ENV_VARS]
+    pending = notify.pending_alerts(cfg)
+    return render(request, "portal/notifications.html", {
+        "form": form, "cfg": cfg, "env": env, "pending": pending,
+        "log": NotificationLog.objects.all()[:15]})
+
+
+@require_POST
+@perm_required("portal.manage_notifications")
+def notifications_test(request):
+    ok, err = notify.send_test(request.user.username)
+    audit(request, "notifications_test", "notificações", "ok" if ok else err[:200])
+    if ok:
+        messages.success(request, "E-mail de teste enviado. Confirme na caixa do Outlook.")
+    else:
+        messages.error(request, f"Falhou o envio: {err}")
+    return redirect("portal:notifications")
+
+
+@require_POST
+@perm_required("portal.manage_notifications")
+def notifications_run(request):
+    res = notify.run_alerts()
+    audit(request, "notifications_run", "notificações", f"{res['alerts']} aviso(s)")
+    if res["skipped"]:
+        messages.warning(request, res["skipped"])
+    elif res["error"]:
+        messages.error(request, f"Falhou o envio: {res['error']}")
+    elif res["alerts"]:
+        messages.success(request, f"{res['alerts']} aviso(s) enviado(s).")
+    else:
+        messages.info(request, "Nada para avisar neste momento.")
+    return redirect("portal:notifications")
 
 
 # ---------------------------------------------------------------------- auditoria

@@ -14,6 +14,7 @@ PLATFORM_PERMISSION_GROUPS = [
         ("portal.manage_users", "Gerir utilizadores", "Criar, editar, desativar e repor palavras-passe."),
         ("portal.manage_groups", "Gerir grupos", "Criar grupos e escolher o acesso a módulos e as permissões."),
         ("portal.manage_modules", "Gerir módulos", "Ver os módulos e ligar ou desligar cada um."),
+        ("portal.manage_notifications", "Gerir notificações", "Avisos por e-mail de certificados a expirar."),
         ("portal.view_audit", "Ver a auditoria", "Registo de ações administrativas."),
     ]),
 ]
@@ -34,11 +35,12 @@ def default_groups() -> dict[str, list[str]]:
     }
 
 
-DEFAULT_GROUPS_VERSION = 3
+DEFAULT_GROUPS_VERSION = 4
 # permissões acrescentadas em cada versão: os grupos base existentes só recebem as novas, nunca perdem nenhuma
 NEW_BY_VERSION = {
     2: {"inventory.view_inventorycertificate", "inventory.manage_inventory"},
     3: {"portal.access_certhub", "portal.manage_modules"},
+    4: {"portal.manage_notifications"},
 }
 
 

@@ -1,12 +1,17 @@
+import re
+
 from django import forms
 from django.contrib.auth import password_validation
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.models import Group, User
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 
 from signing.certinfo import CertificateError, parse_pkcs12, parse_public_certificate
 from signing.models import SigningCertificate, SiteSettings
 
 from . import modules
+from .models import NotificationSettings
 from .permissions import PLATFORM_PERMISSION_GROUPS, all_permission_codes, permission_objects
 
 INPUT = "block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
@@ -239,3 +244,53 @@ class SiteSettingsForm(TailwindMixin, forms.ModelForm):
             if data.get(f) is not None and data[f] < 1:
                 self.add_error(f, "Tem de ser pelo menos 1.")
         return data
+
+
+class NotificationSettingsForm(TailwindMixin, forms.ModelForm):
+    class Meta:
+        model = NotificationSettings
+        fields = ["enabled", "recipients", "thresholds", "notify_expired", "base_url", "transport", "from_address",
+                  "from_name", "smtp_host", "smtp_port", "smtp_security", "smtp_username", "graph_tenant_id",
+                  "graph_client_id"]
+        widgets = {"recipients": forms.Textarea(attrs={"rows": 3})}
+
+    def clean_recipients(self):
+        value = self.cleaned_data["recipients"]
+        bad = []
+        for addr in re.split(r"[\s,;]+", value):
+            if not addr:
+                continue
+            try:
+                validate_email(addr)
+            except ValidationError:
+                bad.append(addr)
+        if bad:
+            raise forms.ValidationError("E-mail inválido: " + ", ".join(bad[:3]))
+        return value
+
+    def clean_thresholds(self):
+        parts = [p.strip() for p in self.cleaned_data["thresholds"].split(",") if p.strip()]
+        if not parts or not all(p.isdigit() and 0 < int(p) <= 730 for p in parts):
+            raise forms.ValidationError("Use números de dias entre 1 e 730, separados por vírgula. Ex.: 30,15,7,3,1")
+        return ",".join(str(n) for n in sorted({int(p) for p in parts}, reverse=True))
+
+    def clean_base_url(self):
+        v = self.cleaned_data["base_url"].strip().rstrip("/")
+        if v and not v.startswith(("http://", "https://")):
+            raise forms.ValidationError("Comece por http:// ou https://")
+        return v
+
+    def clean(self):
+        d = super().clean()
+        if d.get("enabled"):
+            if not d.get("recipients", "").strip():
+                self.add_error("recipients", "Indique pelo menos um destinatário para ativar.")
+            if not d.get("from_address"):
+                self.add_error("from_address", "Indique o remetente para ativar.")
+            if d.get("transport") == "smtp" and not d.get("smtp_host"):
+                self.add_error("smtp_host", "Indique o servidor SMTP.")
+            if d.get("transport") == "graph":
+                for f in ("graph_tenant_id", "graph_client_id"):
+                    if not d.get(f):
+                        self.add_error(f, "Obrigatório para Microsoft Graph.")
+        return d

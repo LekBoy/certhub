@@ -122,6 +122,7 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 if os.environ.get("MINIO_ENDPOINT"):
+    INSTALLED_APPS.append("storages")
     STORAGES["minio"] = {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {

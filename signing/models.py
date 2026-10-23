@@ -228,12 +228,13 @@ class SigningToken(models.Model):
     def hash_token(raw: str) -> str:
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    def set_new_token(self, valid_days: int = 90) -> str:
-        """Devolve o token em claro; só o hash é guardado. Quem chama faz save()."""
+    def set_new_token(self, valid_days: int = 90, expires_at=None) -> str:
+        """Devolve o token em claro; só o hash é guardado. Quem chama faz save().
+        `expires_at` (datetime) tem prioridade sobre `valid_days`."""
         raw = secrets.token_urlsafe(32)
         self.token_hash = self.hash_token(raw)
         self.token_prefix = raw[:8]
-        self.expires_at = timezone.now() + timedelta(days=valid_days)
+        self.expires_at = expires_at or timezone.now() + timedelta(days=valid_days)
         return raw
 
     @property

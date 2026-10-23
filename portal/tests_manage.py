@@ -195,6 +195,37 @@ class TokenAdminTests(ManageBase):
         self.assertIn(days, (6, 7))
 
 
+class TokenExpiryDateTests(ManageBase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user_in("dev", "Assinantes"))
+
+    def day(self, n):
+        return (datetime.date.today() + datetime.timedelta(days=n)).isoformat()
+
+    def test_custom_expiry_date_is_end_of_that_day(self):
+        self.client.post("/certhub/tokens/", {"name": "x", "expires": self.day(10)})
+        t = SigningToken.objects.get()
+        local = t.expires_at.astimezone()
+        self.assertEqual(local.date().isoformat(), self.day(10))
+        self.assertEqual((local.hour, local.minute), (23, 59))
+        self.assertTrue(t.valid)
+
+    def test_empty_date_uses_default_days(self):
+        self.client.post("/certhub/tokens/", {"name": "x", "expires": ""})
+        days = (SigningToken.objects.get().expires_at - SigningToken.objects.get().created_at).days
+        self.assertIn(days, (89, 90))
+
+    def test_invalid_dates_are_rejected(self):
+        for bad in (self.day(0), self.day(-3), self.day(731), "31/12/2030", "abc"):
+            r = self.client.post("/certhub/tokens/", {"name": "x", "expires": bad})
+            self.assertEqual(r.status_code, 200, bad)
+        self.assertFalse(SigningToken.objects.exists())
+
+    def test_form_shows_date_field(self):
+        self.assertContains(self.client.get("/certhub/tokens/"), 'name="expires"')
+
+
 class SettingsAndAuditTests(ManageBase):
     def test_update_settings(self):
         s = SiteSettings.load()

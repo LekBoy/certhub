@@ -43,7 +43,10 @@
       <form method="post" class="mt-4 space-y-4">{% csrf_token %}
         <div><label class="label" for="name">Descrição</label>
           <input id="name" name="name" required maxlength="255" placeholder="Ex.: Pipeline da aplicação X" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"></div>
-        <button class="btn-primary w-full">Gerar token ({{ valid_days }} dias)</button>
+        <div><label class="label" for="expires">Expira em <span class="font-normal text-slate-400">(opcional)</span></label>
+          <input id="expires" name="expires" type="date" min="{{ min_date|date:'Y-m-d' }}" max="{{ max_date|date:'Y-m-d' }}" class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+          <p class="mt-1 text-xs text-slate-500">Se ficar vazio: {{ valid_days }} dias.</p></div>
+        <button class="btn-primary w-full">Gerar token</button>
       </form>
     </section>
     <section class="card p-5">

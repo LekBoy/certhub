@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta
 
 from django.contrib import messages
@@ -54,6 +55,26 @@ def history(request):
     })
 
 
+MAX_TOKEN_DAYS = 730
+
+
+def _token_expiry(value: str):
+    """Data opcional (AAAA-MM-DD) → (fim desse dia, None); vazio → (None, None); inválida → (None, erro)."""
+    value = value.strip()
+    if not value:
+        return None, None
+    try:
+        day = datetime.date.fromisoformat(value)
+    except ValueError:
+        return None, "Data de expiração inválida."
+    today = timezone.localdate()
+    if day <= today:
+        return None, "A data de expiração tem de ser futura."
+    if (day - today).days > MAX_TOKEN_DAYS:
+        return None, f"A data de expiração não pode passar de {MAX_TOKEN_DAYS} dias."
+    return timezone.make_aware(datetime.datetime.combine(day, datetime.time(23, 59, 59))), None
+
+
 @login_required
 @permission_required("signing.can_sign", raise_exception=True)
 def tokens(request):
@@ -64,14 +85,20 @@ def tokens(request):
         if not name:
             messages.error(request, "Indique uma descrição para o token (ex.: pipeline PAD).")
         else:
-            token = SigningToken(user=request.user, name=name)
-            raw = token.set_new_token(site.token_valid_days)
-            token.save()
-            audit(request, "token_created", f"{name} ({request.user.username})")
+            expires_at, error = _token_expiry(request.POST.get("expires", ""))
+            if error:
+                messages.error(request, error)
+            else:
+                token = SigningToken(user=request.user, name=name)
+                raw = token.set_new_token(site.token_valid_days, expires_at)
+                token.save()
+                audit(request, "token_created", f"{name} ({request.user.username}), expira {token.expires_at:%d/%m/%Y}")
     return render(request, "portal/tokens.html", {
         "tokens": SigningToken.objects.filter(user=request.user).order_by("-created_at"),
         "raw_token": raw, "api_url": request.build_absolute_uri(reverse("api_sign")),
         "valid_days": site.token_valid_days,
+        "min_date": timezone.localdate() + timedelta(days=1),
+        "max_date": timezone.localdate() + timedelta(days=MAX_TOKEN_DAYS),
         "usable_certs": SigningCertificate.usable_for(request.user),
     })
 

@@ -138,3 +138,8 @@ class NotificationLog(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["kind", "item_key", "threshold", "expires_on", "ok"])]
+
+
+class Teste(models.Model):
+    file =  models.FileField(upload_to="declaracoes/modelos/",blank=True, null=True, help_text="Modelo Word utilizado na geração da declaração")
+    item_name = models.CharField(max_length=255, blank=True)

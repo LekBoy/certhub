@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'inventory',
     'signing',
     'portal',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -113,6 +114,37 @@ else:
         }
     }
 
+MINIO_ENDPOINT='http://172.20.11.31:9000'
+MINIO_ACCESS_KEY='NY6koc9SUP1lXyuD14MN'
+MINIO_SECRET_KEY='wEuOGTLGJIe41nfxbqHDH9Px2DnPVbzUYfuMtRpq'
+MINIO_BUCKET_NAME='infrahub'
+
+
+AWS_ACCESS_KEY_ID = 'NY6koc9SUP1lXyuD14MN'
+AWS_SECRET_ACCESS_KEY = 'wEuOGTLGJIe41nfxbqHDH9Px2DnPVbzUYfuMtRpq'
+AWS_STORAGE_BUCKET_NAME = 'infrahub'
+AWS_S3_ENDPOINT_URL = os.environ.get("MINIO_ENDPOINT", "http://172.20.11.31:9000")  # API, não a consola (9001)
+AWS_S3_REGION_NAME = "us-east-1"
+AWS_S3_ADDRESSING_STYLE = "path"      # obrigatório para o MinIO
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = True           # URLs assinadas (ficheiros privados)
+AWS_QUERYSTRING_EXPIRE = 3600
+AWS_S3_FILE_OVERWRITE = False
+ 
+STORAGES = {
+    # Uploads (FileField / ImageField / default_storage) -> MinIO
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    # Static continua local, servido pelo WhiteNoise
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+
+ 
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

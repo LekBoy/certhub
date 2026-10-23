@@ -22,7 +22,7 @@ cd C:\infrahub
 python -m venv venv
 venv\Scripts\pip install -r requirements-prod.txt
 mkdir logs, secrets
-copy .env.example .env      # preencher (ver abaixo)
+copy .env.example .env      # preencher (ver abaixo). O .env nunca vem do Git; gere uma DJANGO_SECRET_KEY nova
 venv\Scripts\python manage.py migrate
 venv\Scripts\python manage.py createsuperuser
 venv\Scripts\python manage.py collectstatic --noinput
@@ -38,7 +38,7 @@ DB_ENGINE=postgresql
 DB_PASSWORD=<palavra-passe do utilizador infrahub>
 SIGNTOOL_PATH=C:\Program Files (x86)\Windows Kits\10\bin\10.0.28000.0\x64\signtool.exe
 ```
-Não defina `DJANGO_DEBUG`. O `.env` só deve ser legível pela conta do Application Pool e pelos administradores.
+Não defina `DJANGO_DEBUG` (com `DJANGO_DEBUG=1` a aplicação mostra erros detalhados). Nunca reutilize a chave secreta de desenvolvimento. O `.env` só deve ser legível pela conta do Application Pool e pelos administradores.
 
 Teste a aplicação sozinha antes do IIS:
 `venv\Scripts\waitress-serve --listen=127.0.0.1:8000 config.wsgi:application` → http://127.0.0.1:8000

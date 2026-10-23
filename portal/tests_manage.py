@@ -328,6 +328,24 @@ class CertificateManagementTests(ManageBase):
         self.assertContains(r, "Renovação em")
 
 
+class CertificateIdVisibilityTests(ManageBase):
+    def setUp(self):
+        super().setUp()
+        self.client.post("/certhub/certificates/new/", CertificateManagementTests.payload(self))
+        self.cert = SigningCertificate.objects.get()
+
+    def test_certificate_list_shows_id(self):
+        r = self.client.get("/certhub/certificates/")
+        self.assertContains(r, f'<td class="td font-mono text-xs text-slate-500">{self.cert.pk}</td>', html=False)
+
+    def test_tokens_page_lists_usable_certificates_with_id(self):
+        signer = self.user_in("dev", "Assinantes")
+        self.client.force_login(signer)
+        r = self.client.get("/certhub/tokens/")
+        self.assertContains(r, f"certificate={self.cert.pk}")
+        self.assertContains(r, self.cert.name)
+
+
 class PfxUploadTests(ManageBase):
     def post_pfx(self, pfx, password="s3cret", **extra):
         data = {"name": "Do PFX", "is_active": "on", "method": "store", "store_name": "My", "machine_store": "on",

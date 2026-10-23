@@ -6,10 +6,11 @@
 <div class="card overflow-hidden">
   <div class="overflow-x-auto">
   <table class="min-w-full divide-y divide-slate-200">
-    <thead class="bg-slate-50"><tr><th class="th">Nome</th><th class="th">Método</th><th class="th">Expira</th><th class="th">Estado</th><th class="th">Assinaturas no período</th><th class="th">Renovação</th><th class="th"></th></tr></thead>
+    <thead class="bg-slate-50"><tr><th class="th">ID</th><th class="th">Nome</th><th class="th">Método</th><th class="th">Expira</th><th class="th">Estado</th><th class="th">Assinaturas no período</th><th class="th">Renovação</th><th class="th"></th></tr></thead>
     <tbody class="divide-y divide-slate-100">
     {% for c in certificates %}
       <tr>
+        <td class="td font-mono text-xs text-slate-500">{{ c.pk }}</td>
         <td class="td font-medium text-slate-900">{{ c.name }}<div class="max-w-xs truncate text-xs font-normal text-slate-500" title="{{ c.subject }}">{{ c.subject }}</div>
           <div class="font-mono text-[11px] font-normal text-slate-400">{{ c.thumbprint }}</div></td>
         <td class="td text-xs">{{ c.get_method_display }}</td>
@@ -20,7 +21,7 @@
         <td class="td text-right">{% if perms.portal.manage_certificates %}<a href="{% url 'portal:certificate_edit' c.pk %}" class="btn-secondary !px-3 !py-1.5">Gerir</a>{% endif %}</td>
       </tr>
     {% empty %}
-      <tr><td colspan="7" class="px-5 py-12 text-center text-sm text-slate-500">Sem certificados registados.</td></tr>
+      <tr><td colspan="8" class="px-5 py-12 text-center text-sm text-slate-500">Sem certificados registados.</td></tr>
     {% endfor %}
     </tbody>
   </table>

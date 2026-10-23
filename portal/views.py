@@ -72,6 +72,7 @@ def tokens(request):
         "tokens": SigningToken.objects.filter(user=request.user).order_by("-created_at"),
         "raw_token": raw, "api_url": request.build_absolute_uri(reverse("api_sign")),
         "valid_days": site.token_valid_days,
+        "usable_certs": SigningCertificate.usable_for(request.user),
     })
 
 

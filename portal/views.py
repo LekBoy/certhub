@@ -79,6 +79,7 @@ def _token_expiry(value: str):
 @permission_required("signing.can_sign", raise_exception=True)
 def tokens(request):
     raw = None
+    new_expires = None
     site = SiteSettings.load()
     if request.method == "POST":
         name = request.POST.get("name", "").strip()[:255]
@@ -92,10 +93,11 @@ def tokens(request):
                 token = SigningToken(user=request.user, name=name)
                 raw = token.set_new_token(site.token_valid_days, expires_at)
                 token.save()
+                new_expires = token.expires_at
                 audit(request, "token_created", f"{name} ({request.user.username}), expira {token.expires_at:%d/%m/%Y}")
     return render(request, "portal/tokens.html", {
         "tokens": SigningToken.objects.filter(user=request.user).order_by("-created_at"),
-        "raw_token": raw, "api_url": request.build_absolute_uri(reverse("api_sign")),
+        "raw_token": raw, "new_expires": new_expires, "api_url": request.build_absolute_uri(reverse("api_sign")),
         "valid_days": site.token_valid_days,
         "min_date": timezone.localdate() + timedelta(days=1),
         "max_date": timezone.localdate() + timedelta(days=MAX_TOKEN_DAYS),

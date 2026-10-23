@@ -241,6 +241,11 @@ class SigningToken(models.Model):
     def valid(self):
         return self.is_active and self.expires_at > timezone.now()
 
+    @property
+    def days_left(self) -> int:
+        """Dias completos que faltam (0 = expira hoje)."""
+        return max((timezone.localtime(self.expires_at).date() - timezone.localdate()).days, 0)
+
 
 class SigningRequest(models.Model):
     """Registo de auditoria: quem assinou o quê, com que certificado."""

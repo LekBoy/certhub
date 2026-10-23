@@ -222,6 +222,14 @@ class TokenExpiryDateTests(ManageBase):
             self.assertEqual(r.status_code, 200, bad)
         self.assertFalse(SigningToken.objects.exists())
 
+    def test_page_shows_expiry_and_days_left(self):
+        r = self.client.post("/certhub/tokens/", {"name": "x", "expires": self.day(5)})
+        due = (datetime.date.today() + datetime.timedelta(days=5)).strftime("%d/%m/%Y")
+        self.assertContains(r, f"Expira em {due}.")
+        r = self.client.get("/certhub/tokens/")
+        self.assertContains(r, "5 dias")
+        self.assertContains(r, "badge-amber")
+
     def test_form_shows_date_field(self):
         self.assertContains(self.client.get("/certhub/tokens/"), 'name="expires"')
 

@@ -2,3 +2,4 @@
 -r requirements.txt
 psycopg[binary]>=3.2
 waitress>=3.0
+django-storages[s3]>=1.14

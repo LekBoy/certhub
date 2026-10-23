@@ -51,7 +51,6 @@ INSTALLED_APPS = [
     'inventory',
     'signing',
     'portal',
-    'storages',
 ]
 
 MIDDLEWARE = [
@@ -114,37 +113,32 @@ else:
         }
     }
 
-MINIO_ENDPOINT='http://172.20.11.31:9000'
-MINIO_ACCESS_KEY='NY6koc9SUP1lXyuD14MN'
-MINIO_SECRET_KEY='wEuOGTLGJIe41nfxbqHDH9Px2DnPVbzUYfuMtRpq'
-MINIO_BUCKET_NAME='infrahub'
-
-
-AWS_ACCESS_KEY_ID = 'NY6koc9SUP1lXyuD14MN'
-AWS_SECRET_ACCESS_KEY = 'wEuOGTLGJIe41nfxbqHDH9Px2DnPVbzUYfuMtRpq'
-AWS_STORAGE_BUCKET_NAME = 'infrahub'
-AWS_S3_ENDPOINT_URL = os.environ.get("MINIO_ENDPOINT", "http://172.20.11.31:9000")  # API, não a consola (9001)
-AWS_S3_REGION_NAME = "us-east-1"
-AWS_S3_ADDRESSING_STYLE = "path"      # obrigatório para o MinIO
-AWS_S3_SIGNATURE_VERSION = "s3v4"
-AWS_DEFAULT_ACL = None
-AWS_QUERYSTRING_AUTH = True           # URLs assinadas (ficheiros privados)
-AWS_QUERYSTRING_EXPIRE = 3600
-AWS_S3_FILE_OVERWRITE = False
- 
+# Armazenamento de ficheiros. Por defeito: disco local (o InfraHub não guarda ficheiros por defeito).
+# MinIO (S3) é opcional, só para casos específicos: define MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
+# e MINIO_BUCKET_NAME no .env (nunca no código) e instala requirements-prod.txt (django-storages).
+# Uso: `from django.core.files.storage import storages; storages["minio"]`
 STORAGES = {
-    # Uploads (FileField / ImageField / default_storage) -> MinIO
-    "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
-    },
-    # Static continua local, servido pelo WhiteNoise
-    "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-    },
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+if os.environ.get("MINIO_ENDPOINT"):
+    STORAGES["minio"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "endpoint_url": os.environ["MINIO_ENDPOINT"],  # a API (9000), não a consola (9001)
+            "access_key": os.environ["MINIO_ACCESS_KEY"],
+            "secret_key": os.environ["MINIO_SECRET_KEY"],
+            "bucket_name": os.environ.get("MINIO_BUCKET_NAME", "infrahub"),
+            "region_name": "us-east-1",
+            "addressing_style": "path",  # obrigatório para o MinIO
+            "signature_version": "s3v4",
+            "default_acl": None,
+            "querystring_auth": True,  # URLs assinadas (ficheiros privados)
+            "querystring_expire": 3600,
+            "file_overwrite": False,
+        },
+    }
 
-
- 
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

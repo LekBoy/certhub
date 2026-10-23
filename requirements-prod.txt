@@ -1,0 +1,4 @@
+# Produção (Windows Server + IIS + PostgreSQL): pip install -r requirements-prod.txt
+-r requirements.txt
+psycopg[binary]>=3.2
+waitress>=3.0

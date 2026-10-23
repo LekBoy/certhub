@@ -26,7 +26,17 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()]
+
+# Produção atrás de HTTPS (IIS): DJANGO_BEHIND_HTTPS=1 ativa cookies seguros, HSTS e redirecionamento.
+if os.environ.get("DJANGO_BEHIND_HTTPS") == "1":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SSL_REDIRECT", "1") == "1"
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "3600"))
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
 
 # Application definition
@@ -83,12 +93,26 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# SQLite por defeito (desenvolvimento e testes). Em produção: DB_ENGINE=postgresql + variáveis DB_*.
+if os.environ.get("DB_ENGINE", "sqlite").lower() in ("postgresql", "postgres"):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get("DB_NAME", "infrahub"),
+            'USER': os.environ.get("DB_USER", "infrahub"),
+            'PASSWORD': os.environ["DB_PASSWORD"],
+            'HOST': os.environ.get("DB_HOST", "localhost"),
+            'PORT': os.environ.get("DB_PORT", "5432"),
+            'CONN_MAX_AGE': 60,
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 MINIO_ENDPOINT='http://172.20.11.31:9000'
 MINIO_ACCESS_KEY='NY6koc9SUP1lXyuD14MN'

@@ -22,7 +22,7 @@ cd C:\infrahub
 python -m venv venv
 venv\Scripts\pip install -r requirements-prod.txt
 mkdir logs, secrets
-copy .env.example .env      # preencher (ver abaixo). O .env nunca vem do Git; gere uma DJANGO_SECRET_KEY nova
+copy .env.production.example .env   # preencher os <...>. O .env nunca vem do Git; gere uma DJANGO_SECRET_KEY nova
 venv\Scripts\python manage.py migrate
 venv\Scripts\python manage.py createsuperuser
 venv\Scripts\python manage.py collectstatic --noinput

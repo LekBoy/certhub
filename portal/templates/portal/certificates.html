@@ -6,7 +6,7 @@
 <div class="card overflow-hidden">
   <div class="overflow-x-auto">
   <table class="min-w-full divide-y divide-slate-200">
-    <thead class="bg-slate-50"><tr><th class="th">ID</th><th class="th">Nome</th><th class="th">Método</th><th class="th">Expira</th><th class="th">Estado</th><th class="th">Assinaturas no período</th><th class="th">Renovação</th><th class="th"></th></tr></thead>
+    <thead class="bg-slate-50"><tr><th class="th">ID</th><th class="th">Nome</th><th class="th">Método</th><th class="th">Expira</th><th class="th">Estado</th><th class="th">Assinaturas no período</th><th class="th">Renovação</th><th class="th">Para si</th><th class="th"></th></tr></thead>
     <tbody class="divide-y divide-slate-100">
     {% for c in certificates %}
       <tr>
@@ -18,10 +18,11 @@
         <td class="td">{% include "_cert_badge.html" %}</td>
         <td class="td">{% include "_cert_usage.html" %}</td>
         <td class="td whitespace-nowrap">{% if c.renewal_date %}{{ c.renewal_date|date:"d/m/Y" }}{% if c.renewal_soon %} <span class="badge-amber">em breve</span>{% endif %}{% else %}<span class="text-slate-400">—</span>{% endif %}</td>
-        <td class="td text-right">{% if perms.portal.manage_certificates %}<a href="{% url 'portal:certificate_edit' c.pk %}" class="btn-secondary !px-3 !py-1.5">Gerir</a>{% endif %}</td>
+        <td class="td whitespace-nowrap">{% if c.me_sign %}<span class="badge-green">Assinar</span>{% endif %}{% if c.me_download %} <span class="badge-amber">.pfx</span>{% endif %}{% if not c.me_sign and not c.me_download %}<span class="text-slate-400">—</span>{% endif %}</td>
+        <td class="td text-right"><div class="flex justify-end gap-2">{% if c.me_download %}<form method="post" action="{% url 'portal:certificate_download' c.pk %}">{% csrf_token %}<button class="btn-secondary !px-3 !py-1.5">Descarregar .pfx</button></form>{% endif %}{% if perms.portal.manage_certificates %}<a href="{% url 'portal:certificate_edit' c.pk %}" class="btn-secondary !px-3 !py-1.5">Gerir</a>{% endif %}</div></td>
       </tr>
     {% empty %}
-      <tr><td colspan="8" class="px-5 py-12 text-center text-sm text-slate-500">Sem certificados registados.</td></tr>
+      <tr><td colspan="9" class="px-5 py-12 text-center text-sm text-slate-500">Sem certificados registados.</td></tr>
     {% endfor %}
     </tbody>
   </table>

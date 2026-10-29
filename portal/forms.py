@@ -7,6 +7,9 @@ from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 
+from django.utils import timezone
+
+from signing import filecrypt
 from signing.certinfo import CertificateError, parse_pkcs12, parse_public_certificate
 from signing.models import SigningCertificate, SiteSettings
 
@@ -153,11 +156,17 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
                                    widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "new-password"}))
     allowed_groups = forms.ModelMultipleChoiceField(queryset=Group.objects.all(), required=False,
                                                     widget=forms.CheckboxSelectMultiple, label="Grupos com acesso")
+    store_pfx = forms.BooleanField(
+        label="Guardar o .pfx cifrado, para os grupos abaixo o poderem descarregar", required=False)
+    remove_pfx = forms.BooleanField(label="Apagar o .pfx guardado", required=False)
+    download_groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.all(), required=False, widget=forms.CheckboxSelectMultiple,
+        label="Grupos que podem descarregar o .pfx", help_text="Vazio = ninguém (só superadministradores).")
 
     class Meta:
         model = SigningCertificate
         fields = ["name", "is_active", "method", "store_name", "machine_store", "keypair_alias", "csp_name",
-                  "cert_file_path", "custom_command", "timestamp_url", "verify", "allowed_groups",
+                  "cert_file_path", "custom_command", "timestamp_url", "verify", "allowed_groups", "download_groups",
                   "annual_limit", "subscription_start", "renewal_date", "notes"]
         widgets = {
             "name": forms.TextInput(attrs={"autocomplete": "off"}),
@@ -168,6 +177,7 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
         help_texts = {"allowed_groups": "Vazio = qualquer utilizador com permissão de assinar."}
 
     parsed = None
+    _pfx_bytes = None
 
     def clean_custom_command(self):
         text = self.cleaned_data["custom_command"]
@@ -193,7 +203,8 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
             if upload:
                 parsed, field = parse_public_certificate(upload.read()), "certificate_file"
             elif pfx:
-                parsed, field = parse_pkcs12(pfx.read(), data.get("pfx_password")), "pfx_file"
+                self._pfx_bytes = pfx.read()
+                parsed, field = parse_pkcs12(self._pfx_bytes, data.get("pfx_password")), "pfx_file"
         except CertificateError as exc:
             self.add_error("pfx_password" if pfx and "palavra-passe" in str(exc) else field, str(exc))
         if parsed:
@@ -202,6 +213,13 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
                 self.add_error(field, "Este certificado já está registado.")
             else:
                 self.parsed = parsed
+        if data.get("store_pfx"):
+            if not pfx:
+                self.add_error("store_pfx", "Para guardar, envie o .pfx (e a palavra-passe) neste formulário.")
+            elif parsed and not parsed["had_private_key"]:
+                self.add_error("store_pfx", "Este ficheiro não contém a chave privada: não há nada para descarregar.")
+            elif not filecrypt.is_configured():
+                self.add_error("store_pfx", f"O servidor não tem a chave de cifra ({filecrypt.ENV_VAR}). Peça ao administrador do sistema.")
         method = data.get("method")
         M = SigningCertificate.Method
         if method == M.KEYLOCKER_ALIAS:
@@ -219,6 +237,13 @@ class CertificateForm(TailwindMixin, forms.ModelForm):
                           "source"):
                 setattr(cert, field, self.parsed[field])
             cert.had_private_key = self.parsed["had_private_key"]
+        if self.cleaned_data.get("remove_pfx"):
+            cert.pfx_encrypted, cert.pfx_filename, cert.pfx_stored_at = None, "", None
+        if self.cleaned_data.get("store_pfx") and self._pfx_bytes:
+            cert.pfx_encrypted = filecrypt.encrypt(self._pfx_bytes)
+            safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in cert.name).strip("_") or "certificado"
+            cert.pfx_filename = f"{safe}.pfx"
+            cert.pfx_stored_at = timezone.now()
         if commit:
             cert.save()
             self.save_m2m()

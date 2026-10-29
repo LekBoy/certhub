@@ -9,6 +9,7 @@ urlpatterns = [
     path("certhub/certificates/", views.certificates, name="certificates"),
     path("certhub/certificates/new/", certs.certificate_create, name="certificate_create"),
     path("certhub/certificates/<int:pk>/", certs.certificate_edit, name="certificate_edit"),
+    path("certhub/certificates/<int:pk>/download/", certs.certificate_download, name="certificate_download"),
     path("certhub/certificates/<int:pk>/test/", certs.certificate_test, name="certificate_test"),
     path("certhub/certificates/<int:pk>/delete/", certs.certificate_delete, name="certificate_delete"),
     path("certhub/history/", views.history, name="history"),

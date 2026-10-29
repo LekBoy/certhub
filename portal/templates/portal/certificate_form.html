@@ -21,11 +21,21 @@
       {% include "_field.html" with field=form.certificate_file %}
       <div class="rounded-lg border border-slate-200 p-4">
         <p class="text-sm font-medium text-slate-700">Tem um .pfx?</p>
-        <p class="mb-4 mt-1 text-xs text-slate-500">Os dados do certificado são lidos e registados. O ficheiro e a palavra-passe são usados só em memória: <strong>não são guardados</strong>, e a chave privada nunca fica no CertHub.</p>
+        <p class="mb-4 mt-1 text-xs text-slate-500">Os dados do certificado são lidos e registados. Por defeito o ficheiro e a palavra-passe são usados só em memória e <strong>não são guardados</strong>.</p>
         <div class="grid gap-5 sm:grid-cols-2">
           {% include "_field.html" with field=form.pfx_file %}
           {% include "_field.html" with field=form.pfx_password %}
         </div>
+        <div class="mt-4 rounded-lg bg-amber-50 p-4 ring-1 ring-inset ring-amber-200">
+          {% include "_field.html" with field=form.store_pfx %}
+          <p class="mt-2 text-xs text-amber-900">O ficheiro fica cifrado no servidor. A palavra-passe <strong>nunca</strong> é guardada: entregue-a por outro canal. Quem descarrega o .pfx fica com a chave privada: assina fora do InfraHub e sem registo aqui.</p>
+        </div>
+        {% if cert and cert.has_pfx %}
+        <div class="mt-4 rounded-lg border border-slate-200 p-4">
+          <p class="text-sm text-slate-700">Há um .pfx guardado (<code>{{ cert.pfx_filename }}</code>, {{ cert.pfx_stored_at|date:"d/m/Y H:i" }}). Para o substituir, envie outro e marque «Guardar».</p>
+          <div class="mt-2">{% include "_field.html" with field=form.remove_pfx %}</div>
+        </div>
+        {% endif %}
       </div>
       {% include "_field.html" with field=form.is_active %}
     </section>
@@ -51,11 +61,20 @@
     </section>
 
     <section class="card space-y-4 p-6">
-      <h2 class="font-semibold text-slate-900">Quem pode usar</h2>
+      <h2 class="font-semibold text-slate-900">Quem pode assinar através do InfraHub</h2>
       <div class="grid gap-2 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
         {% for choice in form.allowed_groups %}<label class="flex items-center gap-2 text-sm text-slate-700">{{ choice.tag }} {{ choice.choice_label }}</label>{% empty %}<p class="text-sm text-slate-500">Ainda não há grupos.</p>{% endfor %}
       </div>
       <p class="text-xs text-slate-500">{{ form.allowed_groups.help_text }}</p>
+    </section>
+
+    <section class="card space-y-4 p-6">
+      <h2 class="font-semibold text-slate-900">Quem pode descarregar o .pfx</h2>
+      <p class="text-xs text-slate-500">Cada grupo pode assinar, descarregar, ou as duas coisas: marque o grupo numa ou nas duas listas. Também é preciso a permissão «Descarregar o .pfx» no grupo (Administração → Grupos). {% if not cert or not cert.has_pfx %}Só funciona depois de guardar um .pfx.{% endif %}</p>
+      <div class="grid gap-2 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
+        {% for choice in form.download_groups %}<label class="flex items-center gap-2 text-sm text-slate-700">{{ choice.tag }} {{ choice.choice_label }}</label>{% empty %}<p class="text-sm text-slate-500">Ainda não há grupos.</p>{% endfor %}
+      </div>
+      <p class="text-xs text-slate-500">{{ form.download_groups.help_text }}</p>
     </section>
 
     <section class="card space-y-5 p-6">

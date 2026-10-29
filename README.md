@@ -73,3 +73,7 @@ Guia do DigiCert KeyLocker: [docs/digicert-keylocker.md](docs/digicert-keylocker
 ## Notificações por e-mail
 
 Avisos de certificados a expirar para o Outlook (SMTP ou Microsoft Graph), agendados com `python manage.py send_expiry_alerts`. Ver [docs/notificacoes.md](docs/notificacoes.md).
+
+## Descarregar o .pfx (opcional, controlado por grupos)
+
+Cada certificado pode permitir, por grupo, assinar pelo InfraHub e/ou descarregar o .pfx (cifrado). Ver [docs/download-pfx.md](docs/download-pfx.md).

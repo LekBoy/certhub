@@ -101,6 +101,14 @@ class SigningCertificate(models.Model):
                                             verbose_name="grupos com acesso",
                                             help_text="Vazio = qualquer utilizador com permissão de assinar.")
 
+    # .pfx guardado (cifrado) para descarga controlada por grupos
+    pfx_encrypted = models.BinaryField(null=True, blank=True, editable=False)
+    pfx_filename = models.CharField(max_length=255, blank=True, editable=False)
+    pfx_stored_at = models.DateTimeField(null=True, blank=True, editable=False)
+    download_groups = models.ManyToManyField(Group, blank=True, related_name="downloadable_certificates",
+                                             verbose_name="grupos que podem descarregar o .pfx",
+                                             help_text="Vazio = ninguém (só superadministradores).")
+
     # subscrição / limites
     annual_limit = models.PositiveIntegerField("limite anual de assinaturas", null=True, blank=True,
                                                help_text="Vazio = sem limite conhecido.")
@@ -203,6 +211,20 @@ class SigningCertificate(models.Model):
             return True
         return self.allowed_groups.filter(pk__in=user.groups.values_list("pk", flat=True)).exists()
 
+    @property
+    def has_pfx(self) -> bool:
+        return bool(self.pfx_encrypted)
+
+    def can_download(self, user) -> bool:
+        """.pfx guardado + permissão do módulo + (superadmin ou grupo escolhido neste certificado)."""
+        if not (self.has_pfx and self.is_active and user.is_authenticated and user.is_active):
+            return False
+        if not user.has_perm("signing.download_pfx"):
+            return False
+        if user.is_superuser:
+            return True
+        return self.download_groups.filter(pk__in=user.groups.values_list("pk", flat=True)).exists()
+
     @classmethod
     def usable_for(cls, user):
         return [c for c in cls.objects.filter(is_active=True, not_after__gt=timezone.now()).order_by("-not_after")
@@ -267,7 +289,8 @@ class SigningRequest(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        permissions = [("can_sign", "Pode assinar ficheiros")]
+        permissions = [("can_sign", "Pode assinar ficheiros"),
+                       ("download_pfx", "Pode descarregar o .pfx de certificados")]
 
     def __str__(self):
         return f"{self.filename} [{self.status}]"

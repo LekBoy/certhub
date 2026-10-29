@@ -34,7 +34,12 @@ def dashboard(request):
 
 @login_required
 def certificates(request):
-    return render(request, "portal/certificates.html", {"certificates": SigningCertificate.objects.order_by("not_after")})
+    certs = list(SigningCertificate.objects.order_by("not_after"))
+    can_sign = request.user.has_perm("signing.can_sign")
+    for c in certs:  # o que ESTE utilizador pode fazer com cada certificado
+        c.me_sign = can_sign and c.usable_by(request.user)
+        c.me_download = c.can_download(request.user)
+    return render(request, "portal/certificates.html", {"certificates": certs})
 
 
 @login_required

@@ -26,6 +26,7 @@ CERTHUB = Module(
     permission_groups=[
         ("Assinatura de código", [
             ("signing.can_sign", "Assinar ficheiros", "Usar a página de assinatura e a API, e gerir os seus próprios tokens."),
+            ("signing.download_pfx", "Descarregar o .pfx", "Descarregar o .pfx dos certificados em que o seu grupo tem esse acesso (definido em cada certificado)."),
             ("portal.view_all_history", "Ver o histórico de todos", "Sem isto só vê as suas próprias assinaturas."),
         ]),
         ("Inventário de certificados", [

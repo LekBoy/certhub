@@ -35,12 +35,13 @@ def default_groups() -> dict[str, list[str]]:
     }
 
 
-DEFAULT_GROUPS_VERSION = 4
+DEFAULT_GROUPS_VERSION = 5
 # permissões acrescentadas em cada versão: os grupos base existentes só recebem as novas, nunca perdem nenhuma
 NEW_BY_VERSION = {
     2: {"inventory.view_inventorycertificate", "inventory.manage_inventory"},
     3: {"portal.access_certhub", "portal.manage_modules"},
     4: {"portal.manage_notifications"},
+    5: {"signing.download_pfx"},
 }
 
 

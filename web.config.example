@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- IIS: arranca o waitress com o HttpPlatformHandler. Ajuste o caminho se a aplicação não estiver em C:\infrahub. -->
+<!-- MODELO do web.config do IIS. Na VM:  copy web.config.example web.config
+     e ajustar à máquina: os caminhos (processPath e stdoutLogFile, se a pasta não for C:\infrahub) e, enquanto
+     o site for HTTP, tirar --url-scheme=https e pôr DJANGO_BEHIND_HTTPS=0.
+     O web.config verdadeiro está no .gitignore: não vai para o Git. -->
 <configuration>
   <system.webServer>
     <handlers>

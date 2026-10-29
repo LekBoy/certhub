@@ -23,6 +23,7 @@ python -m venv venv
 venv\Scripts\pip install -r requirements-prod.txt
 mkdir logs, secrets
 copy .env.production.example .env   # preencher os <...>. O .env nunca vem do Git; gere uma DJANGO_SECRET_KEY nova
+copy web.config.example web.config   # ajustar caminhos e HTTP/HTTPS (ver abaixo); também nunca vem do Git
 venv\Scripts\python manage.py migrate
 venv\Scripts\python manage.py createsuperuser
 venv\Scripts\python manage.py collectstatic --noinput
@@ -49,7 +50,7 @@ Teste a aplicação sozinha antes do IIS:
 3. Binding **https (443)** com um certificado do servidor. Não crie binding http, ou use URL Rewrite para redirecionar para https.
 4. Permissões: a conta do pool com *Modificar* em `C:\infrahub\logs` e *Ler* no resto, em `secrets` e no `.env`.
 
-O `web.config` arranca o waitress em `127.0.0.1` (porta interna), com limite de upload de 200 MB e timeout de 10 minutos.
+O `web.config` (criado a partir de `web.config.example`) arranca o waitress em `127.0.0.1` (porta interna), com limite de upload de 200 MB e timeout de 10 minutos.
 
 ## 5. DigiCert (quando o certificado estiver emitido)
 Com **a mesma conta do Application Pool** (a loja de certificados é por utilizador): definir `SM_HOST`, `SM_API_KEY`,
@@ -57,6 +58,7 @@ Com **a mesma conta do Application Pool** (a loja de certificados é por utiliza
 Ver `docs/digicert-keylocker.md`.
 
 ## 6. Atualizar para uma nova versão
+O `.env` e o `web.config` são locais da máquina e não são alterados pelo `git pull`.
 ```powershell
 cd C:\infrahub
 git pull

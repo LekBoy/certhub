@@ -8,17 +8,13 @@
 </head>
 <body class="h-full font-sans antialiased">
 <div class="flex min-h-full">
-  <div class="relative hidden w-1/2 flex-col justify-between bg-brand-900 p-12 lg:flex">
-    <div class="absolute inset-y-0 left-0 w-2 bg-accent"></div>
-    <div class="flex items-center gap-4 text-white">
+  <div class="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-brand-900 p-12 lg:flex">
+    <img src="{% static 'img/login-art.svg' %}" alt="" aria-hidden="true" class="absolute inset-0 h-full w-full object-cover">
+    <div class="absolute inset-y-0 left-0 z-10 w-2 bg-accent"></div>
+    <div class="relative z-10 flex items-center gap-4 text-white">
       <img src="{% static 'img/bca-logo.png' %}" alt="BCA" class="h-20 w-auto rounded-sm">
       <span class="text-xl font-semibold tracking-tight">InfraHub</span>
     </div>
-    <div>
-      <h2 class="text-3xl font-semibold leading-tight text-white">Gestão centralizada<br>da infraestrutura informática.</h2>
-      <p class="mt-4 max-w-md text-white/70">Certificados, assinatura de código e outros serviços de infraestrutura, num único ambiente seguro, com acessos controlados e atividade registada.</p>
-    </div>
-    <p class="text-sm text-white/50">BCA · Acesso restrito a utilizadores autorizados</p>
   </div>
   <div class="flex flex-1 items-center justify-center px-6 py-12">
     <div class="w-full max-w-sm">

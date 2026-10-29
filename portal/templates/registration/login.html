@@ -18,13 +18,13 @@
       <h2 class="text-3xl font-semibold leading-tight text-white">Gestão centralizada<br>da infraestrutura informática.</h2>
       <p class="mt-4 max-w-md text-white/70">Certificados, assinatura de código e outros serviços de infraestrutura, num único ambiente seguro, com acessos controlados e atividade registada.</p>
     </div>
-    <p class="text-sm text-white/50">BCA · Acesso restrito a colaboradores autorizados</p>
+    <p class="text-sm text-white/50">BCA · Acesso restrito a utilizadores autorizados</p>
   </div>
   <div class="flex flex-1 items-center justify-center px-6 py-12">
     <div class="w-full max-w-sm">
       <img src="{% static 'img/bca-logo.png' %}" alt="BCA" class="mb-8 h-14 w-auto rounded-sm lg:hidden">
       <h1 class="text-2xl font-semibold text-slate-900">Entrar</h1>
-      <p class="mt-1 text-sm text-slate-500">Inicie sessão com as suas credenciais corporativas.</p>
+      <p class="mt-1 text-sm text-slate-500">Inicie sessão com a sua conta.</p>
       <form method="post" class="mt-8 space-y-5">
         {% csrf_token %}
         {% if form.errors %}<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200">Utilizador ou palavra-passe incorretos.</div>{% endif %}

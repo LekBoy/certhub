@@ -114,9 +114,11 @@ else:
     }
 
 # Armazenamento de ficheiros. Por defeito: disco local (o InfraHub não guarda ficheiros por defeito).
-# MinIO (S3) é opcional, só para casos específicos: define MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
-# e MINIO_BUCKET_NAME no .env (nunca no código) e instala requirements-prod.txt (django-storages).
-# Uso: `from django.core.files.storage import storages; storages["minio"]`
+# MinIO (S3) é opcional: define MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY e MINIO_BUCKET_NAME no .env
+# (nunca no código) e instala requirements-prod.txt (django-storages).
+#  - só isto:           fica disponível como storages["minio"] (uso explícito, casos específicos);
+#  - com MINIO_DEFAULT=1: passa a ser também o armazenamento por defeito, e qualquer FileField/ImageField
+#                         (sem storage=) grava no MinIO, sem alterar os modelos.
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
@@ -139,6 +141,8 @@ if os.environ.get("MINIO_ENDPOINT"):
             "file_overwrite": False,
         },
     }
+    if os.environ.get("MINIO_DEFAULT") == "1":
+        STORAGES["default"] = STORAGES["minio"]
 
 
 # Password validation
